@@ -1,2 +1,2 @@
-# groker
+# Groker
 Agentic App

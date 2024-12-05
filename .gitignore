@@ -129,7 +129,11 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+# Ignorar todos los archivos .env en cualquier ubicación
+**/.env
 
+# Ignorar todos los directorios .venv en cualquier ubicación
+**/.venv/
 # Spyder project settings
 .spyderproject
 .spyproject

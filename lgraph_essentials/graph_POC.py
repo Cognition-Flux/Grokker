@@ -12,6 +12,80 @@ from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, RemoveMessage
+from langchain_experimental.agents import create_pandas_dataframe_agent
+import pandas as pd
+from lgraph_essentials.llm import llm
+import numpy as np
+from datetime import datetime, timedelta
+import json
+
+
+def create_random_dataframe(num_rows=100, seed=None):
+    """
+    Create a random DataFrame with various data types.
+
+    Parameters:
+    num_rows (int): Number of rows to generate (default: 100)
+    seed (int): Random seed for reproducibility (default: None)
+
+    Returns:
+    pd.DataFrame: DataFrame with random data
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    # Generate random dates
+    start_date = datetime(2023, 1, 1)
+    dates = [start_date + timedelta(days=x) for x in range(num_rows)]
+
+    # Generate random categorical data
+    categories = ["A", "B", "C", "D"]
+    departments = ["Sales", "Marketing", "Engineering", "HR"]
+
+    # Create dictionary of data
+    data = {
+        "date": dates,
+        "category": np.random.choice(categories, num_rows),
+        "department": np.random.choice(departments, num_rows),
+        "value": np.random.normal(100, 25, num_rows),  # Normal distribution
+        "quantity": np.random.randint(1, 100, num_rows),
+        "is_active": np.random.choice([True, False], num_rows),
+        "score": np.random.uniform(0, 1, num_rows),  # Uniform distribution
+        "priority": np.random.choice(["Low", "Medium", "High"], num_rows),
+        "cost": np.random.exponential(500, num_rows),  # Exponential distribution
+    }
+
+    # Create DataFrame
+    df = pd.DataFrame(data)
+
+    # Add some formatting
+    df["date"] = pd.to_datetime(df["date"])
+    df["value"] = df["value"].round(2)
+    df["score"] = df["score"].round(3)
+    df["cost"] = df["cost"].round(2)
+
+    return df
+
+
+# Example usage
+df = create_random_dataframe(num_rows=5, seed=42)
+
+pandas_dataframe_agent = create_pandas_dataframe_agent(
+    llm, df, agent_type="tool-calling", verbose=False, allow_dangerous_code=True
+)
+
+
+def llamar_agente_pandas(question: str) -> str:
+    """llamar_agente_pandas: Agente analista
+    Usar para analizar los datos del usuario.
+    solo hay q pasar la consulta para obtener una respuesta.
+    question: str, consulta.
+
+    return: respuesta
+    """
+    response = pandas_dataframe_agent.invoke(question)
+    return str(response["output"][0]["text"])
+
 
 tavily_search = TavilySearchResults(
     max_results=5,
@@ -19,43 +93,29 @@ tavily_search = TavilySearchResults(
     include_answer=True,
     include_raw_content=True,
     include_images=True,
-    include_domains=["https://pubmed.ncbi.nlm.nih.gov/", "https://scholar.google.com/"],
+    include_domains=["https://pubmed.ncbi.nlm.nih.gov/"],
     verbose=True,
 )
-# tavily_search.invoke("what is optknock")
-tools = [tavily_search]
+tools = [tavily_search, llamar_agente_pandas]
 llm_with_tools = llm.bind_tools(tools)
 
 sys_msg = SystemMessage(
     content="""
-Eres un asistente que puede buscar en internet. 
-Antes de buscar has un plan de cada búsqueda individual para responder las preguntas del usuario.
-Utilice lenguaje técnico especializado.
-"""
+                        Puedes buscar en internet sólo si es necesario.
+                        También puedes consultar los datos del usuario, 
+
+                        sea detallado cuando el usuario pide analizar los datos (llamar_agente_pandas)
+                        Nunca hay auq cargar datos, sólo directamente usar llamar_agente_pandas
+                        Siempre sigue el hilo de la conversación.
+                        """
 )
 
 
-class State(MessagesState):
-    summary: str
-
-
-def assistant(state: State):
+def assistant(state: MessagesState):
     return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
 
 
-# def call_model(state: State):
-#     summary = state.get("summary", "")
-#     if summary:
-#         system_message = f"Summary of conversation earlier:{summary}"
-#         messages = [SystemMessage(content=system_message) + state["messages"]]
-#     else:
-#         messages = state["messages"]
-
-#     response = llm.invoke(messages)
-#     return {"messages": response}
-
-
-builder = StateGraph(State)
+builder = StateGraph(MessagesState)
 builder.add_node("assistant", assistant)
 builder.add_node("tools", ToolNode(tools))
 builder.add_edge(START, "assistant")
@@ -70,132 +130,54 @@ builder.add_edge("tools", "assistant")
 memory = MemorySaver()
 config = {"configurable": {"thread_id": "1"}}
 graph = builder.compile(checkpointer=memory)
-display(Image(graph.get_graph().draw_mermaid_png()))
+# display(Image(graph.get_graph().draw_mermaid_png()))
+
 # %%
-messages = HumanMessage(content="que es optknock? y que es una levadura?")
+node_to_stream = "assistant"
+
+config = {"configurable": {"thread_id": "5"}}
+input_message = HumanMessage(content="dame un resumen de mis datos")
+async for event in graph.astream_events(
+    {"messages": [input_message]}, config, version="v2"
+):
+    # Get chat model tokens from a particular node
+    if (
+        event["event"] == "on_chat_model_stream"
+        and event["metadata"].get("langgraph_node", "") == node_to_stream
+    ):
+        data = event["data"]
+        if data["chunk"].content:
+            print(data["chunk"].content[0].get("text", ""), end="|**")
+
+            # print(
+            #     json.loads(data["chunk"].content[0].replace("'", '"'))["text"], end="|"
+            # )
+
+
+# %%
+messages = HumanMessage(content="dame un resumen de mis datos")
 messages = graph.invoke({"messages": messages}, config)
 for m in messages["messages"]:
     m.pretty_print()
 # %%
-##################################################################################
-####----------------Summarize conversation-----------------------------------
-################################################################################
-
-
-# Define the logic to call the model
-def call_model(state: State):
-    # If a summary exists, we add this in as a system message
-    summary = state.get("summary", "")
-    if summary:
-        system_message = f"Summary of conversation earlier: {summary}"
-        messages = [SystemMessage(content=system_message)] + state["messages"]
-    else:
-        messages = state["messages"]
-    response = llm.invoke(messages)
-    # We return a list, because this will get added to the existing list
-    return {"messages": [response]}
-
-
-# We now define the logic for determining whether to end or summarize the conversation
-def should_continue(state: State) -> Literal["summarize_conversation", "assistant"]:
-    """Return the next node to execute."""
-    messages = state["messages"]
-    # If there are more than six messages, then we summarize the conversation
-    if len(messages) > 2:
-        return "summarize_conversation"
-    # Otherwise we can just end
-    return "assistant"
-
-
-def summarize_conversation(state: State):
-    # First, we summarize the conversation
-    summary = state.get("summary", "")
-    if summary:
-        # If a summary already exists, we use a different system prompt
-        # to summarize it than if one didn't
-        summary_message = (
-            f"This is summary of the conversation to date: {summary}\n\n"
-            "Extend the summary by taking into account the new messages above:"
-        )
-    else:
-        summary_message = "Create a summary of the conversation above:"
-
-    messages = state["messages"] + [HumanMessage(content=summary_message)]
-    response = llm.invoke(messages)
-    # We now need to delete messages that we no longer want to show up
-    # I will delete all but the last two messages, but you can change this
-    delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-2]]
-    return {"summary": response.content, "messages": delete_messages}
-
-
-def assistant(state: State):
-    return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
-
-
-# Define a new graph
-workflow = StateGraph(State)
-
-# Define the conversation node and the summarize node
-workflow.add_node("conversation", call_model)
-workflow.add_node(summarize_conversation)
-workflow.add_node("assistant", assistant)
-
-# Set the entrypoint as conversation
-workflow.add_edge(START, "conversation")
-
-# We now add a conditional edge
-workflow.add_conditional_edges(
-    # First, we define the start node. We use `conversation`.
-    # This means these are the edges taken after the `conversation` node is called.
-    "conversation",
-    # Next, we pass in the function that will determine which node is called next.
-    should_continue,
-)
-
-# We now add a normal edge from `summarize_conversation` to END.
-# This means that after `summarize_conversation` is called, we end.
-workflow.add_edge("summarize_conversation", "assistant")
-workflow.add_node("tools", ToolNode(tools))
-
-workflow.add_edge("tools", "assistant")
-
-workflow.add_conditional_edges(
-    "assistant",
-    # si el último mensaje es una tool call -> tools_condition routes to tools
-    # si el último mensaje NO es una tool call -> tools_condition routes to END
-    tools_condition,
-)
-
-# Finally, we compile it!
-app = workflow.compile(checkpointer=memory)
-display(Image(app.get_graph().draw_mermaid_png()))
-
+input_message = HumanMessage(content="dame un resumen de mis datos")
+async for event in graph.astream_events(
+    {"messages": [input_message]}, config, version="v2"
+):
+    print(
+        f"Node: {event['metadata'].get('langgraph_node','')}. Type: {event['event']}. Name: {event['name']}"
+    )
 # %%
-
-messages = HumanMessage(content="hola")
-messages = app.invoke({"messages": messages}, config)
-for m in messages["messages"]:
-    m.pretty_print()
-
-
-# %%
-def print_update(update):
-    for k, v in update.items():
-        for m in v["messages"]:
-            m.pretty_print()
-        if "summary" in v:
-            print(v["summary"])
-
-
+node_to_stream = "assistant"
 config = {"configurable": {"thread_id": "4"}}
-input_message = HumanMessage(content="hola, soy Ale")
-input_message.pretty_print()
-for event in app.stream({"messages": [input_message]}, config, stream_mode="updates"):
-    print_update(event)
+input_message = HumanMessage(content="dame un resumen de mis datos")
+async for event in graph.astream_events(
+    {"messages": [input_message]}, config, version="v2"
+):
+    # Get chat model tokens from a particular node
+    if (
+        event["event"] == "on_chat_model_stream"
+        and event["metadata"].get("langgraph_node", "") == node_to_stream
+    ):
+        print(event["data"])
 # %%
-input_message = HumanMessage(content="what's my name?")
-input_message.pretty_print()
-for event in app.stream({"messages": [input_message]}, config, stream_mode="updates"):
-    print_update(event)
-# %%
-app.get_state(config).values.get("summary", "")

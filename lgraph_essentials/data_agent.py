@@ -23,6 +23,7 @@ from langgraph.graph import END, StateGraph, START
 from langgraph.graph.message import AnyMessage, add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.graph import MessagesState
 
 url = "https://storage.googleapis.com/benchmarks-artifacts/chinook/Chinook.db"
 
@@ -118,16 +119,16 @@ query_check.invoke({"messages": [("user", "SELECT * FROM Artist LIMIT 10;")]})
 
 
 # Define the state for the agent
-class State(TypedDict):
-    messages: Annotated[list[AnyMessage], add_messages]
+# class State(TypedDict):
+#     messages: Annotated[list[AnyMessage], add_messages]
 
 
 # Define a new graph
-workflow = StateGraph(State)
+workflow = StateGraph(MessagesState)
 
 
 # Add a node for the first tool call
-def first_tool_call(state: State) -> dict[str, list[AIMessage]]:
+def first_tool_call(state: MessagesState) -> dict[str, list[AIMessage]]:
     return {
         "messages": [
             AIMessage(
@@ -144,7 +145,7 @@ def first_tool_call(state: State) -> dict[str, list[AIMessage]]:
     }
 
 
-def model_check_query(state: State) -> dict[str, list[AIMessage]]:
+def model_check_query(state: MessagesState) -> dict[str, list[AIMessage]]:
     """
     Use this tool to double-check if your query is correct before executing it.
     """
@@ -209,7 +210,7 @@ query_gen = query_gen_prompt | ChatOpenAI(model="gpt-4o", temperature=0).bind_to
 )
 
 
-def query_gen_node(state: State):
+def query_gen_node(state: MessagesState):
     message = query_gen.invoke(state)
 
     # Sometimes, the LLM will hallucinate and call the wrong tool. We need to catch this and return an error message.
@@ -238,7 +239,7 @@ workflow.add_node("execute_query", create_tool_node_with_fallback([db_query_tool
 
 
 # Define a conditional edge to decide whether to continue or end the workflow
-def should_continue(state: State) -> Literal[END, "correct_query", "query_gen"]:
+def should_continue(state: MessagesState) -> Literal[END, "correct_query", "query_gen"]:
     messages = state["messages"]
     last_message = messages[-1]
     # If there is a tool call, then we finish
@@ -275,23 +276,9 @@ app = workflow.compile(checkpointer=memory)
 #         )
 #     )
 # )
-
-
-config = {"configurable": {"thread_id": "1"}}
-input_message = HumanMessage(
-    content="Which sales agent made the most in sales in 2009?"
-)
-for event in app.stream(
-    {"messages": [input_message]},
-    config,
-):
-    print(event)
-
-# %%
-
 config = {"configurable": {"thread_id": "4"}}
 input_message = HumanMessage(
-    content="Which sales agent made the most in sales in 2009?"
+    content="Which sales agent made the most in sales in 2009? ejecute la query"
 )
 
 async for event in app.astream_events(
@@ -303,10 +290,11 @@ async for event in app.astream_events(
         f"Node: {event['metadata'].get('langgraph_node','')}. Type: {event['event']}. Name: {event['name']}"
     )
 # %%
+# %%
 node_to_stream = "query_gen"
-config = {"configurable": {"thread_id": "23"}}
+config = {"configurable": {"thread_id": "24"}}
 input_message = HumanMessage(
-    content="Which sales agent made the most in sales in 2009?"
+    content="Which sales agent made the most in sales in 2009? ejecute la query"
 )
 
 async for event in app.astream_events(
@@ -322,6 +310,34 @@ async for event in app.astream_events(
                 event["data"]["chunk"].additional_kwargs["tool_calls"][0]["function"][
                     "arguments"
                 ],
-                flush=False,
+                flush=True,
                 end="",
             )
+
+# %%
+config = {"configurable": {"thread_id": "1"}}
+input_message = HumanMessage(
+    content="Which sales agent made the most in sales in 2009?"
+)
+for event in app.stream(
+    {"messages": [input_message]},
+    config,
+):
+    print(event)
+
+# %%
+
+config = {"configurable": {"thread_id": "4"}}
+input_message = HumanMessage(
+    content="Which sales agent made the most in sales in 2009? ejecute la query"
+)
+
+async for event in app.astream_events(
+    {"messages": [input_message]},
+    config,
+    version="v2",
+):
+    print(
+        f"Node: {event['metadata'].get('langgraph_node','')}. Type: {event['event']}. Name: {event['name']}"
+    )
+# %%

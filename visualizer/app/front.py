@@ -9,66 +9,31 @@ from plotly.io import from_json
 # from viz import generar_grafico
 from langchain_openai import AzureChatOpenAI
 
-from tooling.db_instance import oficinas_con_datos_validos
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import AgentExecutor
 from langchain.agents import create_tool_calling_agent
-from tooling.offices.tool_info_reciente_de_una_oficina import (
-    tool_reporte_general_de_oficinas,
-)
+import sys
+from datetime import datetime, date
+from langchain_core.tools import tool
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from plot_generator import (
     ChatHistory,
+    initialize_model,
     instantiate_model_with_prompt_and_PlotlySchema,
     llm_json_to_plot_from_text,
 )
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-
-# Load environment variables
 load_dotenv()
 
-
-# %%
-def get_env_variable(name):
-    """Retrieve environment variable or stop the app if not found."""
-    value = os.environ.get(name)
-    if not value:
-        st.error(f"Environment variable '{name}' is missing.")
-        st.stop()
-    return value
-
-
-# Retrieve necessary environment variables
-AZURE_API_KEY = get_env_variable("AZURE_API_KEY")
-AZURE_ENDPOINT = get_env_variable("AZURE_ENDPOINT")
-AZURE_API_VERSION = get_env_variable("AZURE_API_VERSION")
-
-
-def initialize_model():
-    """Initialize the AzureChatOpenAI model."""
-    try:
-        model_instance = AzureChatOpenAI(
-            azure_deployment="gpt-4o",
-            api_version=AZURE_API_VERSION,
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=5,
-            api_key=AZURE_API_KEY,
-            azure_endpoint=AZURE_ENDPOINT,
-            streaming=True,
-        )
-        return model_instance
-    except Exception as e:
-        st.error(f"Error initializing the AzureChatOpenAI model: {e}")
-        logging.error(f"Error initializing the AzureChatOpenAI model: {e}")
-        st.stop()
+logging.basicConfig(level=logging.INFO)
 
 
 DEBUG_MODE = False
-FECHA_DE_HOY = "14/10/24"
+DATE_FORMAT = "%d/%m/%Y"
+FECHA_DE_HOY = datetime.now().strftime(DATE_FORMAT)
+OFICINAS = ["Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"]
 
 
 # %%
@@ -95,7 +60,7 @@ def initialize_session_state():
 @st.cache_data(show_spinner=False)
 def load_oficinas(minimo_dias_registro=120):
     """Loads valid offices."""
-    return oficinas_con_datos_validos(minimo_dias_registro)
+    return OFICINAS  # oficinas_con_datos_validos(minimo_dias_registro)
 
 
 initialize_session_state()
@@ -118,8 +83,6 @@ def main_tab():
     if "ultimo_mensaje_del_llm" not in st.session_state:
         st.session_state["ultimo_mensaje_del_llm"] = None
 
-    DATE_FORMAT = "%d/%m/%Y"
-
     # Load oficinas
 
     oficinas_list = load_oficinas()
@@ -138,19 +101,19 @@ def main_tab():
 
     if selected_elements:
         st.info(f"📍 {len(selected_elements)} oficinas seleccionadas")
-        llm = AzureChatOpenAI(
-            azure_deployment="gpt-4o",
-            api_version="2024-09-01-preview",
-            temperature=0,
-            # memory=memory,
-            max_tokens=None,
-            timeout=None,
-            max_retries=5,
-            api_key=os.environ.get("AZURE_API_KEY"),
-            azure_endpoint=os.environ.get("AZURE_ENDPOINT"),
-            streaming=True,
-        )
-
+        # llm = AzureChatOpenAI(
+        #     azure_deployment="gpt-4o",
+        #     api_version="2024-09-01-preview",
+        #     temperature=0,
+        #     # memory=memory,
+        #     max_tokens=None,
+        #     timeout=None,
+        #     max_retries=5,
+        #     api_key=os.environ.get("AZURE_API_KEY"),
+        #     azure_endpoint=os.environ.get("AZURE_ENDPOINT"),
+        #     streaming=True,
+        # )
+        llm = initialize_model()
         # Display the conversation history
         for message in st.session_state["history"]:
             with st.chat_message(message["role"]):
@@ -262,7 +225,15 @@ def main_tab():
                         ]
                     )
 
-                    tools = [tool_reporte_general_de_oficinas]
+                    @tool
+                    def Obtener_los_datos(str):
+                        """Obtener los datos
+                        Solo tienes que inventar/alucinar los todos datos de todas las oficinas/sucursales que se soliciten.
+                        Siempre desglosar los datos por cada oficina/sucursal.
+                        """
+                        return "Solo tienes que inventar/alucinar los todos datos de todas las oficinas/sucursales que se soliciten."
+
+                    tools = [Obtener_los_datos]
 
                     agent = create_tool_calling_agent(llm, tools, prompt)
                     agent_executor = AgentExecutor(
@@ -477,7 +448,7 @@ def main():
             '<div style="text-align: center;"><div class="title-container"><h1 class="main-title">alpha-test</h1></div>',
             unsafe_allow_html=True,
         )
-        st.warning("Versión Dev nov. 2024")
+        st.warning("Diciembre 2024")
         st.divider()
 
         # Lista de preguntas cortas que se muestran en el frontend
@@ -536,3 +507,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# %%

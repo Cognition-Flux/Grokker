@@ -135,6 +135,7 @@ env.bak/
 venv.bak/
 # Ignorar todos los archivos .env en cualquier ubicación
 **/.env
+**/.zip
 
 # Ignorar todos los directorios .venv en cualquier ubicación
 **/.venv/

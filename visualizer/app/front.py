@@ -33,7 +33,9 @@ logging.basicConfig(level=logging.INFO)
 DEBUG_MODE = False
 DATE_FORMAT = "%d/%m/%Y"
 FECHA_DE_HOY = datetime.now().strftime(DATE_FORMAT)
-OFICINAS = ["Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"]
+OFICINAS = [
+    "Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"
+    ]
 
 
 # %%
@@ -362,9 +364,9 @@ def main_tab():
 
     else:
         st.info("Seleccionar al menos una oficina.")
-        st.warning(
-            "Datos actualizados hasta el 14 de oct. 2024. La IA asume tal fecha como el día presente."
-        )
+        # st.warning(
+        #     "Datos actualizados hasta el 14 de oct. 2024. La IA asume tal fecha como el día presente."
+        # )
 
 
 def render_chart(tab):
@@ -444,11 +446,68 @@ def format_date(date):
 def main():
     with st.sidebar:
         st.set_page_config(layout="wide")
-        st.markdown(
-            '<div style="text-align: center;"><div class="title-container"><h1 class="main-title">alpha-test</h1></div>',
-            unsafe_allow_html=True,
-        )
-        st.warning("Diciembre 2024")
+        st.markdown("""
+    <style>
+        .title-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            text-align: center;
+        }
+        .main-title {
+            font-size: 4rem;
+            font-weight: bold;
+            background: linear-gradient(
+                270deg,
+                #CB9B66,
+                #D4B0B0,
+                #D7A88C,
+                #E19983,
+                #E4B79A,
+                #DBC3B6,
+                #CBBAB4,
+                #B0C4C3,
+                #A3B5B9,
+                #98AAB3,
+                #8B9EA8,
+                #9CA8B3,
+                #ADB2BC,
+                #B0B7BE,
+                #C1BDB8,
+                #C8C2B4,
+                #D1C4B3,
+                #D8C6B2,
+                #D4B0B0,
+                #CB9B66
+            );
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient 8s ease infinite;
+            margin: 0;
+            padding: 0;
+        }
+        
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    </style>
+    <div class="title-container">
+        <h1 class="main-title">Groker</h1>
+    </div>
+""", unsafe_allow_html=True)
+        #st.warning("Versión beta, diciembre 2024")
         st.divider()
 
         # Lista de preguntas cortas que se muestran en el frontend

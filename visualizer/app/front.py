@@ -33,9 +33,7 @@ logging.basicConfig(level=logging.INFO)
 DEBUG_MODE = False
 DATE_FORMAT = "%d/%m/%Y"
 FECHA_DE_HOY = datetime.now().strftime(DATE_FORMAT)
-OFICINAS = [
-    "Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"
-    ]
+OFICINAS = ["Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"]
 
 
 # %%
@@ -151,33 +149,32 @@ def main_tab():
 
                 # Placeholder for the assistant's response
                 with st.chat_message("assistant"):
-                    st.session_state["chat_history"] = (
-                        st.session_state["chat_history"]
-                        + [
-                            HumanMessage(
-                                content=str(
-                                    st.session_state["history"][0][
-                                        "content"
-                                    ]  # extraer el único mensaje
-                                    if len(st.session_state["history"])
-                                    == 1  # cuando es el primer mensaje del chat
-                                    else st.session_state["history"][-2][
-                                        "content"
-                                    ]  # Si no el penúltimo, por ya habría un dialogo.
-                                )
-                            ),
-                            # (str(resultados_intermedios)),
-                            AIMessage(
-                                content=str(
-                                    None  # nada, porq si es el primer mensaje la ia todavía no responde.
-                                    if len(st.session_state["history"]) == 1
-                                    else st.session_state["history"][-1][
-                                        "content"
-                                    ]  # si no extrar el último, que siempre es un mss de la ia.
-                                )
-                            ),
-                        ]
-                    )
+                    st.session_state["chat_history"] = st.session_state[
+                        "chat_history"
+                    ] + [
+                        HumanMessage(
+                            content=str(
+                                st.session_state["history"][0][
+                                    "content"
+                                ]  # extraer el único mensaje
+                                if len(st.session_state["history"])
+                                == 1  # cuando es el primer mensaje del chat
+                                else st.session_state["history"][-2][
+                                    "content"
+                                ]  # Si no el penúltimo, por ya habría un dialogo.
+                            )
+                        ),
+                        # (str(resultados_intermedios)),
+                        AIMessage(
+                            content=str(
+                                None  # nada, porq si es el primer mensaje la ia todavía no responde.
+                                if len(st.session_state["history"]) == 1
+                                else st.session_state["history"][-1][
+                                    "content"
+                                ]  # si no extrar el último, que siempre es un mss de la ia.
+                            )
+                        ),
+                    ]
 
                     formatted_prompt = {
                         "input": user_message,
@@ -261,9 +258,9 @@ def main_tab():
                                         "intermediate_steps", []
                                     )
                                     if intermediate_steps:
-                                        st.session_state["resultados_intermedios"] += (
-                                            intermediate_steps[-1][-1]
-                                        )
+                                        st.session_state[
+                                            "resultados_intermedios"
+                                        ] += intermediate_steps[-1][-1]
                                 except (KeyError, IndexError, TypeError) as e:
                                     print(f"Error processing intermediate steps: {e}")
                                     pass
@@ -446,7 +443,8 @@ def format_date(date):
 def main():
     with st.sidebar:
         st.set_page_config(layout="wide")
-        st.markdown("""
+        st.markdown(
+            """
     <style>
         .title-container {
             position: absolute;
@@ -506,8 +504,10 @@ def main():
     <div class="title-container">
         <h1 class="main-title">Groker</h1>
     </div>
-""", unsafe_allow_html=True)
-        #st.warning("Versión beta, diciembre 2024")
+""",
+            unsafe_allow_html=True,
+        )
+        # st.warning("Versión beta, diciembre 2024")
         st.divider()
 
         # Lista de preguntas cortas que se muestran en el frontend

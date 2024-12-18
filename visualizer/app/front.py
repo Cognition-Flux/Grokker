@@ -1,30 +1,36 @@
 # %%
 import os
+
 import logging
 
 import streamlit as st
 from dotenv import load_dotenv
 from plotly.io import from_json
-
-# from viz import generar_grafico
-from langchain_openai import AzureChatOpenAI
-
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import AgentExecutor
 from langchain.agents import create_tool_calling_agent
 import sys
-from datetime import datetime, date
+from datetime import datetime
 from langchain_core.tools import tool
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from plot_generator import (
-    ChatHistory,
-    initialize_model,
-    instantiate_model_with_prompt_and_PlotlySchema,
-    llm_json_to_plot_from_text,
-)
+try:
+    from plot_generator import (
+        ChatHistory,
+        initialize_model,
+        instantiate_model_with_prompt_and_PlotlySchema,
+        llm_json_to_plot_from_text,
+    )
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from plot_generator import (
+        ChatHistory,
+        initialize_model,
+        instantiate_model_with_prompt_and_PlotlySchema,
+        llm_json_to_plot_from_text,
+    )
 
+# %%
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +39,13 @@ logging.basicConfig(level=logging.INFO)
 DEBUG_MODE = False
 DATE_FORMAT = "%d/%m/%Y"
 FECHA_DE_HOY = datetime.now().strftime(DATE_FORMAT)
-OFICINAS = ["Las Condes", "Providencia", "Santiago Centro", "Maipú", "Puente Alto"]
+OFICINAS = [
+    "Las Condes",
+    "Providencia",
+    "Santiago Centro",
+    "Maipú",
+    "Puente Alto",
+]
 
 
 # %%
@@ -126,13 +138,17 @@ def main_tab():
         user_message = None
 
         # Get user input
-        if prompt := st.chat_input(" ⌨ Escribe tu consulta aquí...", key="chat_input"):
+        if prompt := st.chat_input(
+            " ⌨ Escribe tu consulta aquí...", key="chat_input"
+        ):
             user_message = prompt
 
         # Check if a common question was clicked
         elif "clicked_question" in st.session_state:
             user_message = st.session_state["clicked_question"]
-            del st.session_state["clicked_question"]  # Remove it after processing
+            del st.session_state[
+                "clicked_question"
+            ]  # Remove it after processing
         with st.spinner("Trabajando..."):
             # Process the user's message
             if user_message is not None:
@@ -262,12 +278,14 @@ def main_tab():
                                             "resultados_intermedios"
                                         ] += intermediate_steps[-1][-1]
                                 except (KeyError, IndexError, TypeError) as e:
-                                    print(f"Error processing intermediate steps: {e}")
+                                    print(
+                                        f"Error processing intermediate steps: {e}"
+                                    )
                                     pass
                             if "output" in stream.keys():
-                                st.session_state["ultimo_mensaje_del_llm"] = stream[
-                                    "messages"
-                                ][0].content
+                                st.session_state["ultimo_mensaje_del_llm"] = (
+                                    stream["messages"][0].content
+                                )
 
                                 response_placeholder.markdown(
                                     f'<div class="chat-message">{st.session_state["ultimo_mensaje_del_llm"]}</div>',
@@ -278,7 +296,9 @@ def main_tab():
                         st.session_state["history"].append(
                             {
                                 "role": "assistant",
-                                "content": st.session_state["ultimo_mensaje_del_llm"],
+                                "content": st.session_state[
+                                    "ultimo_mensaje_del_llm"
+                                ],
                             }
                         )
 
@@ -306,7 +326,9 @@ def main_tab():
 
                     try:
                         chat_history_plot_gen = ChatHistory()
-                        llm_plot_gen = instantiate_model_with_prompt_and_PlotlySchema()
+                        llm_plot_gen = (
+                            instantiate_model_with_prompt_and_PlotlySchema()
+                        )
                         fig = llm_json_to_plot_from_text(
                             input_instructions=llm_input,
                             model_with_structure_and_prompt=llm_plot_gen,
@@ -333,7 +355,9 @@ def main_tab():
                         st.rerun()
 
                     except Exception as e:
-                        st.error(f"Ocurrió un error al generar el gráfico: {e}")
+                        st.error(
+                            f"Ocurrió un error al generar el gráfico: {e}"
+                        )
                         logging.error(f"Error al generar el gráfico: {e}")
 
             # Mostrar mensajes persistentes después del rerun
@@ -416,14 +440,20 @@ def additional_tab(idx):
                         try:
                             fig = llm_json_to_plot_from_text(
                                 input_instructions=new_user_input,
-                                model_with_structure_and_prompt=tab["llm_plot_gen"],
+                                model_with_structure_and_prompt=tab[
+                                    "llm_plot_gen"
+                                ],
                                 chat_history=tab["chat_history_for_plot_gen"],
                             )
                             tab["fig_json"] = fig.to_json()
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Ocurrió un error al actualizar el gráfico: {e}")
-                            logging.error(f"Error al actualizar el gráfico: {e}")
+                            st.error(
+                                f"Ocurrió un error al actualizar el gráfico: {e}"
+                            )
+                            logging.error(
+                                f"Error al actualizar el gráfico: {e}"
+                            )
 
     if st.button(f"Cerrar {tab['name']}", key=f"close_{tab['id']}"):
         st.session_state.tabs = [

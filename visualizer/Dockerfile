@@ -5,11 +5,10 @@ FROM continuumio/miniconda3
 WORKDIR /app
 
 # Copy requirements
-COPY requirements.yml .
-
+COPY requirements.yaml .
 
 # Create conda environment and install dependencies
-RUN conda env create -f requirements.yml
+RUN conda env create -f requirements.yaml
 
 # Make RUN commands use the new environment
 
@@ -19,7 +18,6 @@ COPY app/ ./app/
 
 # Expose port 8080 for the Streamlit app
 EXPOSE 8085
-
 
 # Set environment variables for logging
 ENV PYTHONUNBUFFERED=1

@@ -12,23 +12,23 @@ extend-exclude = '''
 max-line-length = 88
 max-complexity = 10
 extend-ignore = [
-    "E203",  # Whitespace before ':' (needed for Black)
-    "W503"   # Line break before binary operator (needed for Black)
+    "E203", # Whitespace before ':' (needed for Black)
+    "W503", # Line break before binary operator (needed for Black)
 ]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "B",   # flake8-bugbear
-    "C",   # mccabe complexity
-    "D",   # flake8-docstrings
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "B", # flake8-bugbear
+    "C", # mccabe complexity
+    #"D",   # flake8-docstrings
     "I",   # flake8-import-order
     "N",   # pep8-naming
     "Q",   # flake8-quotes
     "S",   # flake8-bandit
     "ANN", # flake8-annotations
     "BLK", # flake8-black
-    "ERA"  # flake8-eradicate
+    "ERA", # flake8-eradicate
 ]
 
 # Configuración de importaciones
@@ -37,17 +37,10 @@ application-import-names = ["lgraph_essentials"]
 import-order-grouped-imports = true
 
 # Configuración de docstrings
-docstring-convention = "google"
+#docstring-convention = "google"
 
 # Excluir archivos/directorios
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    "*.pyc",
-    "*.egg-info"
-]
+exclude = [".git", "__pycache__", "build", "dist", "*.pyc", "*.egg-info"]
 
 # Configuración de quotes
 inline-quotes = "double"

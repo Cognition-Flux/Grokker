@@ -1,9 +1,7 @@
 # %%
 import json
-import os
 from typing import Annotated, Dict, List, Sequence, TypedDict
 
-from dotenv import load_dotenv
 from IPython.display import Image, display
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -11,13 +9,10 @@ from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.tools import tool
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
-
-load_dotenv(override=True)
 
 
 class AgentState(TypedDict):
@@ -92,19 +87,51 @@ def should_continue(state: AgentState) -> str:
 tools = [multiply, add, divide]
 tools_by_name = {tool.name: tool for tool in tools}
 
-llm = AzureChatOpenAI(
-    azure_deployment="gpt-4o",
-    api_version=os.environ["AZURE_API_VERSION"],
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=5,
-    api_key=os.environ["AZURE_OPENAI_API_KEY"],
-    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-    streaming=True,
+
+class InMemoryHistory(BaseChatMessageHistory, BaseModel):
+    messages: List[BaseMessage] = Field(default_factory=list)
+
+    def add_messages(self: "InMemoryHistory", messages: List[BaseMessage]) -> None:
+        self.messages.extend(messages)
+
+    def clear(self: "InMemoryHistory") -> None:
+        self.messages = []
+
+
+store = {}
+
+
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = InMemoryHistory()
+    return store[session_id]
+
+
+prompt = ChatPromptTemplate.from_template(
+    """\
+    Siempre considerar historia de mensajes \
+    de la conversación con el usuario:
+    {history}
+    Consulta del usuario:
+    {pregunta}
+    """,
 )
 
-llm_with_tools = llm.bind_tools(tools)
+llm = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0,
+    max_retries=5,
+    streaming=False,
+)
+
+chain = prompt | llm.bind_tools(tools)
+
+chain_with_history = RunnableWithMessageHistory(
+    chain,
+    get_session_history=get_session_history,
+    input_messages_key="pregunta",
+    history_messages_key="history",
+)
 
 
 def call_model(
@@ -113,13 +140,15 @@ def call_model(
 ) -> Dict[str, List[BaseMessage]]:
     system_prompt = SystemMessage(
         content=(
-            "Planifica en detalle y ejecuta todas las acciones necesarias"
-            "para responder a la pregunta del usuario. "
-            "Tu respuesta Final debe ser breve y coherente con la pregunta del usuario."
+            "Planifica en detalle y ejecuta todas las acciones necesarias",
+            "para responder a la pregunta del usuario. ",
+            "Tu respuesta Final debe ser breve y coherente con la pregunta del usuario.",
         )
     )
-    response = llm_with_tools.invoke([system_prompt] + state["messages"], config)
-    # We return a list, because this will get added to the existing list
+    response = chain_with_history.invoke(
+        input={"pregunta": [system_prompt] + state["messages"]},
+        config={"configurable": {"session_id": "0"}},
+    )
     return {"messages": [response]}
 
 
@@ -141,8 +170,8 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("tools", "agent")
 
-memory = MemorySaver()
-graph = workflow.compile(checkpointer=memory)
+graph = workflow.compile()
+
 
 # try:
 #     display(Image(graph.get_graph().draw_mermaid_png()))
@@ -159,8 +188,6 @@ def print_stream(stream: list) -> None:
             message.pretty_print()
 
 
-thread_id = "0"
-config = {"configurable": {"thread_id": thread_id}}
 inputs = {
     "messages": [
         (
@@ -171,7 +198,7 @@ inputs = {
         )
     ]
 }
-print_stream(graph.stream(inputs, config, stream_mode="values"))
+print_stream(graph.stream(inputs, stream_mode="values"))
 # %%
 inputs = {
     "messages": [
@@ -181,4 +208,4 @@ inputs = {
         )
     ]
 }
-print_stream(graph.stream(inputs, config, stream_mode="values"))
+print_stream(graph.stream(inputs, stream_mode="values"))

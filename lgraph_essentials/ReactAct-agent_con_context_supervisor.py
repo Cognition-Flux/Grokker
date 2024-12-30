@@ -80,7 +80,7 @@ def llamar_llm(
         return Command(goto=END, update={"messages": [response]})
 
 
-def parse_input_and_update_state(state: State) -> dict:
+def generar_contexto(state: State) -> dict:
     try:
         # Obtener el último mensaje
         last_message = state["messages"][-1]
@@ -185,14 +185,14 @@ def prompt_generator(state: State):
 
 # Actualizar la definición del grafo
 workflow = StateGraph(State)
-workflow.add_node("parse_input", parse_input_and_update_state)
+workflow.add_node("generar_contexto", generar_contexto)
 workflow.add_node("supervisor", llamar_llm)
 workflow.add_node("prompt_generator", prompt_generator)  # Agregar el nuevo nodo
 workflow.add_node("ReAct", react_agent)
 
 # Actualizar las conexiones del grafo
-workflow.add_edge(START, "parse_input")
-workflow.add_edge("parse_input", "supervisor")
+workflow.add_edge(START, "generar_contexto")
+workflow.add_edge("generar_contexto", "supervisor")
 workflow.add_edge("supervisor", "prompt_generator")  # Supervisor -> Prompt Generator
 workflow.add_edge("prompt_generator", "ReAct")  # Prompt Generator -> ReAct
 workflow.add_edge("supervisor", END)

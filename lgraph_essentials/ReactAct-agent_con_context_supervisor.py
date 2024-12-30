@@ -46,12 +46,12 @@ class State(MessagesState):
     contexto: str = ""
 
 
-def transferir_a_react() -> Command:
-    """Llamar esto para transferir el control al agente ReAct"""
-    return Command(goto="ReAct")
+def transferir_a_prompt_generator() -> Command:
+    """Llamar esto para transferir el control al agente prompt_generator"""
+    return Command(goto="prompt_generator")
 
 
-tools = [transferir_a_react]
+tools = [transferir_a_prompt_generator]
 
 llm = get_llm()
 llm_with_tools = llm.bind_tools(tools)
@@ -60,7 +60,7 @@ llm_with_tools = llm.bind_tools(tools)
 def llamar_llm(
     state: State,
     config: RunnableConfig,
-):
+) -> Command[Literal["prompt_generator", END]]:
     # Obtener el contexto procesado
     contexto = state.get("contexto", "No hay elementos seleccionados en contexto")
 
@@ -68,14 +68,14 @@ def llamar_llm(
         content=(
             f"{contexto}\n\n"
             "Si el usuario pregunta por las oficinas seleccionadas, responde "
-            "directamente al usuario con las oficinas seleccionadas. Si NO, pasale el "
-            "requimiento al agente ReAct."
+            "directamente al usuario INFORMANDO las oficinas seleccionadas en el contexto y finaliza."
+            "Si el usuario pregunta por las fechas, TRANSFIERE el control al agente prompt_generator."
         )
     )
     response = llm_with_tools.invoke([system_prompt] + state["messages"], config)
 
     if len(response.tool_calls) > 0:
-        return Command(goto="ReAct")
+        return Command(goto="prompt_generator")
     else:
         return Command(goto=END, update={"messages": [response]})
 
@@ -144,29 +144,9 @@ def format_oficinas_context(state_values: dict) -> str:
     return f"Elemento seleccionados en contexto: {oficinas_str}"
 
 
-def react_agent(state: State):
-    """
-    Mock function for ReAct agent node that processes the request and returns a response.
-    """
-    # Obtener el último mensaje
-    last_message = state["messages"][-1]
-
-    # Obtener el contexto actual
-    contexto = state.get("contexto", "No hay elementos seleccionados en contexto")
-
-    # Crear una respuesta que incluya el contexto
-    response = HumanMessage(
-        content=f"ReAct Agent procesó el mensaje: '{last_message.content}' con el contexto: {contexto}"
-    )
-
-    return {
-        "messages": [response]
-    }  # Command(goto=END, update={"messages": [response]})
-
-
 def prompt_generator(state: State):
     """
-    Mock function for prompt generator node that enhances the request with additional context.
+    Prompt-generator agent node that enhances the request with additional context.
     """
     # Obtener el último mensaje
     last_message = state["messages"][-1]
@@ -175,41 +155,38 @@ def prompt_generator(state: State):
     contexto = state.get("contexto", "No hay elementos seleccionados en contexto")
 
     # Crear un prompt enriquecido que combina el mensaje original y el contexto
-    enhanced_prompt = HumanMessage(
-        content=f"[CONTEXTO]: {contexto}\n[CONSULTA ORIGINAL]: {last_message.content}\n"
-        "Por favor, procesa esta consulta considerando el contexto proporcionado."
+    enhanced_prompt = get_llm().invoke(
+        [
+            SystemMessage(
+                content=f"[CONTEXTO]: {contexto}\n[CONSULTA ORIGINAL]: {last_message.content}\n"
+                "Por favor, PREGUNTA AL USUARIO QUE FECHAS NECESITA."
+            )
+        ]
     )
 
     return {"messages": [enhanced_prompt]}
 
 
-# Actualizar la definición del grafo
 workflow = StateGraph(State)
 workflow.add_node("generar_contexto", generar_contexto)
 workflow.add_node("supervisor", llamar_llm)
-workflow.add_node("prompt_generator", prompt_generator)  # Agregar el nuevo nodo
-workflow.add_node("ReAct", react_agent)
+workflow.add_node("prompt_generator", prompt_generator)
 
-# Actualizar las conexiones del grafo
 workflow.add_edge(START, "generar_contexto")
 workflow.add_edge("generar_contexto", "supervisor")
-workflow.add_edge("supervisor", "prompt_generator")  # Supervisor -> Prompt Generator
-workflow.add_edge("prompt_generator", "ReAct")  # Prompt Generator -> ReAct
-workflow.add_edge("supervisor", END)
-workflow.add_edge("ReAct", END)
+workflow.add_edge("prompt_generator", END)
 
 memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
 display(Image(graph.get_graph().draw_mermaid_png()))
 
 
-# %%
 config = {"configurable": {"thread_id": "1"}}
 
 input_message = HumanMessage(
-    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'hola'}"
+    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'que hay seleccionado??'}"
 )
-output = graph.invoke({"messages": [input_message]}, config)
+output = graph.invoke({"messages": [input_message]}, config, debug=True)
 
 for m in output["messages"][-1:]:
     m.pretty_print()
@@ -217,7 +194,7 @@ for m in output["messages"][-1:]:
 # %%
 
 input_message = HumanMessage(
-    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'que está seleccionado??'}"
+    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'NECESITO consultar fechas'}"
 )
 output = graph.invoke({"messages": [input_message]}, config)
 
@@ -227,181 +204,3 @@ for m in output["messages"][-1:]:
 
 
 # %%
-######------Agente ReAct con herramientas------######
-
-
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-
-
-@tool
-def obtener_contexto_de_la_atencion() -> str:
-    """
-    Obtiene el contexto de la atención del cliente.
-    """
-    return "El cliente requiere que la respuesta use jerga de biología"
-
-
-@tool
-def multiply(a: float, b: float) -> float:
-    """Multiplica dos números enteros.
-
-    Args:
-        a (float): Primer número a multiplicar
-        b (float): Segundo número a multiplicar
-
-    Returns:
-        int: El producto de a y b
-    """
-    return a * b
-
-
-@tool
-def add(a: float, b: float) -> float:
-    """Suma dos números enteros.
-
-    Args:
-        a (float): Primer número a sumar
-        b (float): Segundo número a sumar
-
-    Returns:
-        int: La suma de a y b
-    """
-    return a + b
-
-
-@tool
-def divide(a: float, b: float) -> float:
-    """Divide dos números enteros.
-
-    Args:
-        a (float): Numerador
-        b (float): Denominador
-
-    Returns:
-        float: El resultado de dividir a entre b
-    """
-    return a / b
-
-
-def tool_node(state: AgentState) -> dict[str, list[ToolMessage]]:
-    outputs = []
-    for tool_call in state["messages"][-1].tool_calls:
-        tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
-        outputs.append(
-            ToolMessage(
-                content=json.dumps(tool_result),
-                name=tool_call["name"],
-                tool_call_id=tool_call["id"],
-            )
-        )
-    return {"messages": outputs}
-
-
-def should_continue(state: AgentState) -> str:
-    messages = state["messages"]
-    last_message = messages[-1]
-    if not last_message.tool_calls:
-        return "end"
-    else:
-        return "continue"
-
-
-tools = [multiply, add, divide]
-tools_by_name = {tool.name: tool for tool in tools}
-
-llm = AzureChatOpenAI(
-    azure_deployment="gpt-4o",
-    api_version=os.environ["AZURE_API_VERSION"],
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=5,
-    api_key=os.environ["AZURE_OPENAI_API_KEY"],
-    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-    streaming=True,
-)
-
-
-llm_with_tools = get_llm().bind_tools(tools)
-
-
-def call_model(
-    state: AgentState,
-    config: RunnableConfig,
-) -> Dict[str, List[BaseMessage]]:
-    system_prompt = SystemMessage(
-        content=(
-            "Planifica en detalle y ejecuta todas las acciones necesarias"
-            "para responder a la pregunta del usuario. "
-            "Tu respuesta Final debe ser breve y coherente con la pregunta del usuario."
-        )
-    )
-    response = llm_with_tools.invoke([system_prompt] + state["messages"], config)
-    # We return a list, because this will get added to the existing list
-    return {"messages": [response]}
-
-
-ReAct = StateGraph(AgentState)
-
-ReAct.add_node("agent", call_model)
-ReAct.add_node("tools", tool_node)
-
-ReAct.set_entry_point("agent")
-
-ReAct.add_conditional_edges(
-    "agent",
-    should_continue,
-    {
-        "continue": "tools",
-        "end": END,
-    },
-)
-
-ReAct.add_edge("tools", "agent")
-
-memory = MemorySaver()
-graph = ReAct.compile(checkpointer=memory)
-
-try:
-    display(Image(graph.get_graph().draw_mermaid_png()))
-except Exception as e:
-    print(f"Could not display graph visualization: {e}")
-
-
-# %%
-
-
-# %%
-def print_stream(stream: list) -> None:
-    for s in stream:
-        message = s["messages"][-1]
-        if isinstance(message, tuple):
-            print(message)
-        else:
-            message.pretty_print()
-
-
-thread_id = "0"
-config = {"configurable": {"thread_id": thread_id}}
-inputs = {
-    "messages": [
-        (
-            "user",
-            "multiplica 7789679 por 9939, el resultado lo divides por 1089711"
-            " y lo restas con 67823. Este resultado debes elevarlo al cuadrado (multiplicarlo por si mismo) "
-            "y luego dividir por el número inicial. Mostrar el resultado con dos decimales",
-        )
-    ]
-}
-print_stream(graph.stream(inputs, config, stream_mode="values"))
-# %%
-inputs = {
-    "messages": [
-        (
-            "user",
-            "cual fue el resultado de la operacion anterior?",
-        )
-    ]
-}
-print_stream(graph.stream(inputs, config, stream_mode="values"))

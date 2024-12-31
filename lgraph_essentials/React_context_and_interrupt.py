@@ -1,20 +1,45 @@
 # %%
+import json
+import os
+from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
+
+from dotenv import load_dotenv
 from IPython.display import Image, display
+from langchain.prompts import ChatPromptTemplate
 from langchain_anthropic import ChatAnthropic
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
 # Set up the tool
 # We will have one real tool - a search tool
 # We'll also have one "fake" tool - a "ask_human" tool
 # Here we define any ACTUAL tools
 from langchain_core.tools import tool
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 # Set up memory
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
+
+load_dotenv(override=True)
+
+
+class GraphState(MessagesState):
+    oficinas_seleccionadas: set = set()
+    contexto: str = ""
 
 
 @tool
@@ -68,7 +93,21 @@ def should_continue(state):
 # Define the function that calls the model
 def call_model(state):
     messages = state["messages"]
-    response = model.invoke(messages)
+
+    contexto = state.get(
+        "contexto", "Las oficinas seleccionadas son: Iquique y Santiago"
+    )
+
+    system_prompt = SystemMessage(
+        content=(
+            f"{contexto}\n\n"
+            "Si el usuario pregunta por las oficinas seleccionadas, responde "
+            "directamente al usuario INFORMANDO las oficinas seleccionadas en el contexto y finaliza."
+        )
+    )
+    response = model.invoke([system_prompt] + messages)
+
+    # response = model.invoke(messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
@@ -85,7 +124,7 @@ def ask_human(state):
 
 
 # Define a new graph
-workflow = StateGraph(MessagesState)
+workflow = StateGraph(GraphState)
 
 # Define the three nodes we will cycle between
 workflow.add_node("agent", call_model)
@@ -121,8 +160,8 @@ memory = MemorySaver()
 # We add a breakpoint BEFORE the `ask_human` node so it never executes
 app = workflow.compile(checkpointer=memory)
 
-display(Image(app.get_graph().draw_mermaid_png()))
-# %%
+# display(Image(app.get_graph().draw_mermaid_png()))
+
 config = {"configurable": {"thread_id": "2"}}
 for event in app.stream(
     {
@@ -137,10 +176,25 @@ for event in app.stream(
     stream_mode="values",
 ):
     event["messages"][-1].pretty_print()
-# %%
-# util para condicional input tipo command/resume. if ('ask_human',)
 
-app.get_state(config).next
-# %%
+# util para condicional input tipo command/resume. if ('ask_human',)
+print(app.get_state(config).next)
+
 for event in app.stream(Command(resume="san francisco"), config, stream_mode="values"):
     event["messages"][-1].pretty_print()
+# %%
+config = {"configurable": {"thread_id": "2"}}
+for event in app.stream(
+    {
+        "messages": [
+            (
+                "user",
+                "que oficinas hay?",
+            )
+        ]
+    },
+    config,
+    stream_mode="values",
+):
+    event["messages"][-1].pretty_print()
+print(app.get_state(config).next)

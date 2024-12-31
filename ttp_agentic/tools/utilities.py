@@ -153,27 +153,3 @@ def add_docstring(doc):
         return func
 
     return decorator
-
-
-class ReporteDetalladoPorEjecutivo(BaseModel):
-    executive_names: List[str] = Field(
-        default=[
-            "Abigail Betzabet Calabrano Avalos",
-            "Maria Margarita Bahamondez Madrid",
-        ],
-        description="Lista de nombres completos de ejecutivos",
-    )
-    start_date: str = Field(
-        default="01/10/2024", description="Start date in '%d/%m/%Y' format"
-    )
-    end_date: str = Field(
-        default="15/10/2024", description="End date in '%d/%m/%Y'  format"
-    )
-    parse_input_for_tool = classmethod(parse_input)
-    get_documentation_for_tool = classmethod(get_documentation)
-
-
-# input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
-
-# input_data = ReporteDetalladoPorEjecutivo.parse_input_for_tool(input_string)
-# input_data.model_dump()

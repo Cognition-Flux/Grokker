@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from ttp_agentic.db_instance import _engine
-from ttp_agentic.utilities import (
+from ttp_agentic.tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
@@ -687,9 +687,6 @@ tool_reporte_general_de_oficinas = StructuredTool.from_function(
     return_direct=False,
 )
 
-
-# %%
-# %%
 if __name__ == "__main__":
     office_names = ["356 - El Bosque", "362 - El Golf"]
     # Example with days_back

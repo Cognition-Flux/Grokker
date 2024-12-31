@@ -21,7 +21,7 @@ from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.types import Command
+from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
 load_dotenv(override=True)
@@ -160,6 +160,7 @@ def prompt_generator(state: State):
             SystemMessage(
                 content=f"[CONTEXTO]: {contexto}\n[CONSULTA ORIGINAL]: {last_message.content}\n"
                 "Por favor, PREGUNTA AL USUARIO QUE FECHAS NECESITA."
+                "CUANDO LA RESPUESTA la entrege el usuario, inmediatamente directamente entrega un prompt"
             )
         ]
     )
@@ -186,7 +187,7 @@ config = {"configurable": {"thread_id": "1"}}
 input_message = HumanMessage(
     content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'que hay seleccionado??'}"
 )
-output = graph.invoke({"messages": [input_message]}, config, debug=True)
+output = graph.invoke({"messages": [input_message]}, config)
 
 for m in output["messages"][-1:]:
     m.pretty_print()
@@ -201,6 +202,12 @@ output = graph.invoke({"messages": [input_message]}, config)
 for m in output["messages"][-1:]:
     m.pretty_print()
 # %%
+input_message = HumanMessage(
+    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'mes desde el 01 al 31'}"
+)
+output = graph.invoke({"messages": [input_message]}, config)
 
+for m in output["messages"][-1:]:
+    m.pretty_print()
 
 # %%

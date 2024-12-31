@@ -5,11 +5,10 @@ from typing import List, Literal
 
 import numpy as np
 import pandas as pd
+from db_instance import _engine
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
-from ttp_agentic.db_instance import _engine
-from ttp_agentic.tools.utilities import (
+from tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
@@ -445,7 +444,7 @@ tool_reporte_detallado_por_ejecutivo = StructuredTool.from_function(
     func=get_reporte_detallado_por_ejecutivo,
     name="get_reporte_detallado_por_ejecutivo",
     description=get_reporte_detallado_por_ejecutivo.__doc__,
-    return_direct=False,
+    return_direct=True,
 )
 if __name__ == "__main__":
     input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'

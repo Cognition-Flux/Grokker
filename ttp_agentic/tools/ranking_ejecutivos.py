@@ -3,12 +3,11 @@ import os
 from typing import List, Literal
 
 import pandas as pd
+from db_instance import _engine
 from dotenv import load_dotenv
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
-from ttp_agentic.db_instance import _engine
-from ttp_agentic.tools.utilities import (
+from tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,

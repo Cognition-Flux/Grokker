@@ -6,13 +6,12 @@ from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from db_instance import _engine
 from dotenv import load_dotenv
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-
-from ttp_agentic.db_instance import _engine
-from ttp_agentic.tools.utilities import (
+from tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
@@ -684,7 +683,7 @@ tool_reporte_general_de_oficinas = StructuredTool.from_function(
     func=get_reporte_general_de_oficinas,
     name="get_reporte_general_de_oficinas",
     description=get_reporte_general_de_oficinas.__doc__,
-    return_direct=False,
+    return_direct=True,
 )
 
 if __name__ == "__main__":

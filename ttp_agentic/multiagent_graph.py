@@ -1,4 +1,12 @@
 # %%
+import os
+import sys
+from pathlib import Path
+
+# Set working directory to file location
+file_path = Path(__file__).resolve()
+os.chdir(file_path.parent)
+sys.path.append(str(file_path.parent.parent))
 import json
 import os
 from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
@@ -32,15 +40,10 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
+from tools.ranking_ejecutivos import executive_ranking_tool
+from tools.reporte_detallado_por_ejecutivo import tool_reporte_detallado_por_ejecutivo
+from tools.reporte_general_de_oficinas import tool_reporte_general_de_oficinas
 from typing_extensions import TypedDict
-
-from ttp_agentic.tools.ranking_ejecutivos import executive_ranking_tool
-from ttp_agentic.tools.reporte_detallado_por_ejecutivo import (
-    tool_reporte_detallado_por_ejecutivo,
-)
-from ttp_agentic.tools.reporte_general_de_oficinas import (
-    tool_reporte_general_de_oficinas,
-)
 
 load_dotenv(override=True)
 oficinas_seleccionadas = [
@@ -126,92 +129,31 @@ def should_continue(state):
     # If there is no function call, then we finish
     if not last_message.tool_calls:
         return END
-    # If tool call is asking Human, we return that node
-    # You could also add logic here to let some system know that there's something that requires Human input
-    # For example, send a slack message, etc
     elif last_message.tool_calls[0]["name"] == "AskHuman":
         return "ask_human"
     # Otherwise if there is, we continue
     else:
-        return "action"
+        return "tools"
 
 
 workflow = StateGraph(GraphState)
 
-# Define the three nodes we will cycle between
 workflow.add_node("agent", call_model)
-workflow.add_node("action", tool_node)
+workflow.add_node("tools", tool_node)
 workflow.add_node("ask_human", ask_human)
 
-# Set the entrypoint as `agent`
-# This means that this node is the first one called
 workflow.add_edge(START, "agent")
 
-# We now add a conditional edge
 workflow.add_conditional_edges(
-    # First, we define the start node. We use `agent`.
-    # This means these are the edges taken after the `agent` node is called.
     "agent",
-    # Next, we pass in the function that will determine which node is called next.
     should_continue,
 )
 
-# We now add a normal edge from `tools` to `agent`.
-# This means that after `tools` is called, `agent` node is called next.
-workflow.add_edge("action", "agent")
+workflow.add_edge("tools", "agent")
 
 # After we get back the human response, we go back to the agent
 workflow.add_edge("ask_human", "agent")
 
 
 memory = MemorySaver()
-
-# Finally, we compile it!
-# This compiles it into a LangChain Runnable,
-# meaning you can use it as you would any other runnable
-# We add a breakpoint BEFORE the `ask_human` node so it never executes
-app = workflow.compile(checkpointer=memory)
-
-# display(Image(app.get_graph().draw_mermaid_png()))
-
-config = {"configurable": {"thread_id": "2"}}
-for event in app.stream(
-    {
-        "messages": [
-            (
-                "user",
-                "dame el reporte general de oficinas",
-            )
-        ]
-    },
-    config,
-    stream_mode="values",
-):
-    event["messages"][-1].pretty_print()
-
-# util para condicional input tipo command/resume. if ('ask_human',)
-print(app.get_state(config).next)
-# %%
-for event in app.stream(Command(resume="ultimo mes"), config, stream_mode="values"):
-    event["messages"][-1].pretty_print()
-# %%
-config = {"configurable": {"thread_id": "2"}}
-for event in app.stream(
-    {
-        "messages": [
-            (
-                "user",
-                "dame el ranking de ejecutivos",
-            )
-        ]
-    },
-    config,
-    stream_mode="values",
-):
-    event["messages"][-1].pretty_print()
-
-# util para condicional input tipo command/resume. if ('ask_human',)
-print(app.get_state(config).next)
-# %%
-for event in app.stream(Command(resume="ultimo mes"), config, stream_mode="values"):
-    event["messages"][-1].pretty_print()
+graph = workflow.compile(checkpointer=memory)

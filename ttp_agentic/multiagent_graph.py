@@ -41,27 +41,22 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 from tools.ranking_ejecutivos import executive_ranking_tool
+from tools.registros_disponibles import rango_registros_disponibles
 from tools.reporte_detallado_por_ejecutivo import tool_reporte_detallado_por_ejecutivo
 from tools.reporte_general_de_oficinas import tool_reporte_general_de_oficinas
 from typing_extensions import TypedDict
 
 load_dotenv(override=True)
-oficinas_seleccionadas = [
-    "160 - Ñuñoa",
-    "162 - Torre Las Condes",
-    "001 - Huerfanos 740 EDW",
-    "003 - Cauquenes",
-    "004 - Apoquindo EDW",
-    "005 - Los Leones",
-    "007 - Viña del Mar EDW",
-    "223 - Talcahuano",
-    "225 - Concepcion",
-    "229 - Curico OHiggins",
-    "230 - Los Angeles",
-    "232 - Angol",
-    "234 - Pirque",
-    "235 - Victoria",
-]
+
+# office_names = [
+#     "001 - Huerfanos 740 EDW",
+#     "003 - Cauquenes",
+#     "004 - Apoquindo EDW",
+#     "009 - Vitacura EDW",
+# ]
+# # Example with days_back
+# print(rango_registros_disponibles(office_names))
+# # %%
 
 
 def get_llm() -> AzureChatOpenAI:
@@ -109,14 +104,14 @@ tool_node = ToolNode(tools)
 llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
 
 
-def call_model(state):
+def call_model(state: GraphState):
     messages = state["messages"]
 
-    # contexto = state.get("contexto", oficinas_seleccionadas)
+    contexto = state.get("contexto", "No hay contexto")
 
     system_prompt = SystemMessage(
         content=(
-            # f"Oficinas seleccionadas: {contexto}\n\n"
+            f"Contexto: {contexto}\n\n"
             "El año actual es 2024."
             # "Al inicio del chat, pregunta al usuario su nombre (AskHuman)."
             "si el usuario dice que quiere el reporte, debes preguntarle con AskHuman el periodo de tiempo a reportar"
@@ -127,14 +122,14 @@ def call_model(state):
     return {"messages": [response]}
 
 
-def ask_human(state):
+def ask_human(state: GraphState):
     tool_call_id = state["messages"][-1].tool_calls[0]["id"]
     periodo = interrupt("Indique el periodo de tiempo a reportar")
     tool_message = [{"tool_call_id": tool_call_id, "type": "tool", "content": periodo}]
     return {"messages": tool_message}
 
 
-def should_continue(state):
+def should_continue(state: GraphState):
     messages = state["messages"]
     last_message = messages[-1]
     # If there is no function call, then we finish
@@ -147,13 +142,98 @@ def should_continue(state):
         return "tools"
 
 
-workflow = StateGraph(GraphState)
+def generar_contexto(state: GraphState) -> dict:
+    try:
+        # Obtener el último mensaje
+        last_message = state["messages"][-1]
 
+        # Usar regex para extraer la lista de oficinas
+        import re
+
+        pattern = r"Considera las oficinas \[(.*?)\]"
+        match = re.search(pattern, last_message.content)
+
+        if match:
+            # Extraer el contenido entre corchetes y convertirlo en lista
+            oficinas_str = match.group(1)
+            # Dividir por comas y limpiar espacios y comillas
+            oficinas_list = [
+                office.strip().strip("'") for office in oficinas_str.split(",")
+            ]
+            content = {
+                "oficinas_seleccionadas": oficinas_list,
+                "mensaje": last_message.content,
+            }
+        else:
+            # Si no encuentra el patrón, intentar el eval original
+            content = {}
+
+        # Obtener el nuevo set de oficinas
+        new_oficinas = set(content.get("oficinas_seleccionadas", []))
+        # Obtener el set actual de oficinas
+        current_oficinas = state.get("oficinas_seleccionadas", set())
+
+        # Crear nuevo mensaje solo con el contenido del mensaje
+        new_message = HumanMessage(content=content.get("mensaje", ""))
+
+        # Crear el estado actualizado
+        updated_state = {
+            "messages": [RemoveMessage(id=last_message.id), new_message],
+        }
+
+        print("\n=== Verificación de cambios en oficinas ===")
+        if new_oficinas != current_oficinas:
+            # Oficinas agregadas
+            agregadas = new_oficinas - current_oficinas
+            if agregadas:
+                print(f"Oficinas agregadas: {', '.join(sorted(agregadas))}")
+
+            # Oficinas eliminadas
+            eliminadas = current_oficinas - new_oficinas
+            if eliminadas:
+                print(f"Oficinas eliminadas: {', '.join(sorted(eliminadas))}")
+
+            updated_state["oficinas_seleccionadas"] = new_oficinas
+            updated_state["contexto"] = format_oficinas_context(
+                {"oficinas_seleccionadas": new_oficinas}
+            )
+        else:
+            print("No hay cambios en las oficinas seleccionadas")
+            print(f"Oficinas actuales: {', '.join(sorted(current_oficinas))}")
+
+        print("=================================\n")
+        return updated_state
+
+    except Exception as e:
+        print(f"Error parsing input: {e}")
+        return {}
+
+
+def format_oficinas_context(state_values: dict) -> str:
+    oficinas = state_values.get("oficinas_seleccionadas")
+
+    if not oficinas:
+        return "No hay oficinas en contexto"
+    # Convertir set a lista ordenada para consistencia
+    oficinas_list = sorted(oficinas)
+
+    if len(oficinas_list) == 1:
+        return f"Oficina en contexto: {oficinas_list[0]}"
+
+    # Unir todas las oficinas con comas y "y" para la última
+    # oficinas_str = ", ".join(oficinas_list[:-1]) + " y " + oficinas_list[-1]
+    return f"Contexto: {rango_registros_disponibles(oficinas_list)}"
+
+
+workflow = StateGraph(GraphState)
+workflow.add_node("context", generar_contexto)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", tool_node)
 workflow.add_node("ask_human", ask_human)
 
-workflow.add_edge(START, "agent")
+workflow.add_edge(START, "context")
+
+workflow.add_edge("context", "agent")
 
 workflow.add_conditional_edges(
     "agent",
@@ -169,3 +249,16 @@ workflow.add_edge("ask_human", "agent")
 memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
 display(Image(graph.get_graph().draw_mermaid_png()))
+# %%
+# display(Image(graph.get_graph().draw_mermaid_png()))
+if __name__ == "__main__":
+    config = {"configurable": {"thread_id": "1"}}
+
+    input_message = HumanMessage(
+        content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que registros hay'"
+    )
+    for chunk in graph.stream(
+        {"messages": [input_message]}, config, stream_mode="updates"
+    ):
+        if "agent" in chunk:
+            print(chunk["agent"]["messages"][0].pretty_print())

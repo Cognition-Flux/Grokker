@@ -252,16 +252,16 @@ qs = [
     "resuma nuestra conversación",
 ]
 #%%
-user_input = UserInput(message=qs[2], model="gpt-4o", thread_id="0")
+user_input = UserInput(message=qs[3], model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
     print(content, end="|")
 
 
 # %%
-user_input = UserInput(message=qs[4], model="gpt-4o", thread_id="0")
-async for content in call_graph(graph, user_input):
-    print(content, end="|")
+# user_input = UserInput(message=qs[3], model="gpt-4o", thread_id="0")
+# async for content in call_graph(graph, user_input):
+#     print(content, end="|")
 
 
 # # %%

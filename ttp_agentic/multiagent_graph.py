@@ -64,7 +64,6 @@ oficinas_seleccionadas = [
 ]
 
 
-# %%
 def get_llm() -> AzureChatOpenAI:
     return AzureChatOpenAI(
         azure_deployment="gpt-4o",
@@ -169,3 +168,4 @@ workflow.add_edge("ask_human", "agent")
 
 memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
+display(Image(graph.get_graph().draw_mermaid_png()))

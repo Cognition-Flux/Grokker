@@ -24,18 +24,17 @@ from langgraph.graph.message import add_messages
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
-from ttp_agentic.tools.reporte_general_de_oficinas import reporte_general_de_oficinas
+from ttp_agentic.tools.registros_disponibles import rango_registros_disponibles
 
-# %%
-office_names = [
-    "001 - Huerfanos 740 EDW",
-    "003 - Cauquenes",
-    "004 - Apoquindo EDW",
-    "009 - Vitacura EDW",
-]
-# Example with days_back
-print(reporte_general_de_oficinas(office_names, days_back=3, corte_espera=900))
-# %%
+# office_names = [
+#     "001 - Huerfanos 740 EDW",
+#     "003 - Cauquenes",
+#     "004 - Apoquindo EDW",
+#     "009 - Vitacura EDW",
+# ]
+# # Example with days_back
+# print(rango_registros_disponibles(office_names))
+# # %%
 
 load_dotenv(override=True)
 
@@ -79,9 +78,10 @@ def llamar_llm(
 
     system_prompt = SystemMessage(
         content=(
+            "Estos son los registros/datos disponibles para las oficinas seleccionadas:\n"
             f"{contexto}\n\n"
             "Si el usuario pregunta por las oficinas seleccionadas, responde "
-            "directamente al usuario INFORMANDO las oficinas seleccionadas en el contexto y finaliza."
+            "directamente al usuario y finaliza."
         )
     )
     response = llm_with_tools.invoke([system_prompt] + state["messages"], config)
@@ -172,7 +172,7 @@ def format_oficinas_context(state_values: dict) -> str:
 
     # Unir todas las oficinas con comas y "y" para la última
     # oficinas_str = ", ".join(oficinas_list[:-1]) + " y " + oficinas_list[-1]
-    return f"Contexto: {reporte_general_de_oficinas(oficinas_list, days_back=3, corte_espera=900)}"
+    return f"Contexto: {rango_registros_disponibles(oficinas_list)}"
 
 
 def prompt_generator(state: State):
@@ -217,7 +217,7 @@ config = {"configurable": {"thread_id": "1"}}
 
 
 input_message = HumanMessage(
-    content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] dame el SLA de las oficinas'"
+    content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que registros hay'"
 )
 output = graph.invoke({"messages": [input_message]}, config)
 

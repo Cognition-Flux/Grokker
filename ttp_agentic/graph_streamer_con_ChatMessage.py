@@ -8,16 +8,19 @@ file_path = Path(__file__).resolve()
 os.chdir(file_path.parent)
 sys.path.append(str(file_path.parent.parent))
 import asyncio
+import json
 import typing
 from collections.abc import AsyncGenerator
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from IPython.display import Image, display
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import (AIMessage, BaseMessage, HumanMessage,
+                                     ToolCall, ToolMessage, message_to_dict,
+                                     messages_from_dict)
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
@@ -27,6 +30,17 @@ from pydantic import BaseModel, Field
 # display(Image(graph.get_graph().draw_mermaid_png()))
 app = FastAPI()
 
+def convert_message_content_to_string(content: str | list[str | dict]) -> str:
+    if isinstance(content, str):
+        return content
+    text: list[str] = []
+    for content_item in content:
+        if isinstance(content_item, str):
+            text.append(content_item)
+            continue
+        if content_item["type"] == "text":
+            text.append(content_item["text"])
+    return "".join(text)
 
 class UserInput(BaseModel):
     """Basic user input for the agent."""
@@ -67,7 +81,84 @@ def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
         ),
     }
     return kwargs, run_id
+class ChatMessage(BaseModel):
+    """Message in a chat."""
 
+    type: Literal["human", "ai", "tool"] = Field(
+        description="Role of the message.",
+        examples=["human", "ai", "tool"],
+    )
+    content: str = Field(
+        description="Content of the message.",
+        examples=["Hello, world!"],
+    )
+    tool_calls: list[ToolCall] = Field(
+        description="Tool calls in the message.",
+        default=[],
+    )
+    tool_call_id: str | None = Field(
+        description="Tool call that this message is responding to.",
+        default=None,
+        examples=["call_Jja7J89XsjrOLA5r!MEOW!SL"],
+    )
+    run_id: str | None = Field(
+        description="Run ID of the message.",
+        default=None,
+        examples=["847c6285-8fc9-4560-a83f-4e6285809254"],
+    )
+    original: dict[str, Any] = Field(
+        description="Original LangChain message in serialized form.",
+        default={},
+    )
+
+    @classmethod
+    def from_langchain(cls, message: BaseMessage) -> "ChatMessage":
+        """Create a ChatMessage from a LangChain message."""
+        original = message_to_dict(message)
+        match message:
+            case HumanMessage():
+                human_message = cls(
+                    type="human",
+                    content=convert_message_content_to_string(message.content),
+                    original=original,
+                )
+                return human_message
+            case AIMessage():
+                ai_message = cls(
+                    type="ai",
+                    content=convert_message_content_to_string(message.content),
+                    original=original,
+                )
+                if message.tool_calls:
+                    ai_message.tool_calls = message.tool_calls
+                return ai_message
+            case ToolMessage():
+                tool_message = cls(
+                    type="tool",
+                    content=convert_message_content_to_string(message.content),
+                    tool_call_id=message.tool_call_id,
+                    original=original,
+                )
+                return tool_message
+            case _:
+                raise ValueError(f"Unsupported message type: {message.__class__.__name__}")
+
+    def to_langchain(self) -> BaseMessage:
+        """Convert the ChatMessage to a LangChain message."""
+        if self.original:
+            raw_original = messages_from_dict([self.original])[0]
+            raw_original.content = self.content
+            return raw_original
+        match self.type:
+            case "human":
+                return HumanMessage(content=self.content)
+            case _:
+                raise NotImplementedError(f"Unsupported message type: {self.type}")
+
+    def pretty_print(self) -> None:
+        """Pretty print the ChatMessage."""
+        lc_msg = self.to_langchain()
+        lc_msg.pretty_print()
 
 async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None:
     kwargs, run_id = _parse_input(user_input)
@@ -78,34 +169,79 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
     mensaje_del_usuario = kwargs["input"]["messages"][-1]
     node_to_stream: str = "agent"
     if graph.get_state(config).next == () or not graph.get_state(config).next:
-        async for event in graph.astream_events(
-            {"messages": [mensaje_del_usuario]}, config, version="v2"
-        ):
-            print(f"---{event["data"]}")
+        # Process streamed events from the graph and yield messages over the SSE stream.
+        async for event in graph.astream_events( {"messages": [mensaje_del_usuario]}, config, version="v2"):
+            if not event:
+                continue
+
+            # Yield messages written to the graph state after node execution finishes.
             if (
-                event["event"] == "on_chat_model_stream"
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
+                event["event"] == "on_chain_end"
+                # on_chain_end gets called a bunch of times in a graph execution
+                # This filters out everything except for "graph node finished"
+                and any(t.startswith("graph:step:") for t in event.get("tags", []))
+                and "messages" in event["data"]["output"]
+                
             ):
-                if "tool_calls" in event["data"]["chunk"].additional_kwargs:
-                    tool_calls = event["data"]["chunk"].additional_kwargs["tool_calls"]
-                    yield tool_calls[0]["function"]["arguments"]
-                else:
-                    yield event["data"]["chunk"].content
+                new_messages = event["data"]["output"]["messages"]
+                print(f"#### 11111 {new_messages=}")
+                for message in new_messages:
+                    try:
+                        chat_message = ChatMessage.from_langchain(message)
+                        chat_message.run_id = str(run_id)
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                        continue
+                if chat_message.model_dump()['tool_calls']:
+                    # print(f"{chat_message.model_dump()['tool_calls'][0]['args']['question']=}")
+                    # print(f"{chat_message.model_dump()['content']=}")
+                    # print(f"{chat_message.tool_calls[0]['args']['question']=}")
+                    chat_message.content = chat_message.tool_calls[0]['args']['question']
+                    #print(f"{chat_message.model_dump()['content']=}")
+                try:
+                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+                except Exception as e:
+                    continue
+
+                # if "tool_calls" in event["data"]["chunk"].additional_kwargs:
+                #     tool_calls = event["data"]["chunk"].additional_kwargs["tool_calls"]
+                #     yield ''#tool_calls[0]["function"]["arguments"]
+                # else:
+                #     yield ''#event["data"]["chunk"].content
             # print(graph.get_state(config).next)
     else:
-        async for event in graph.astream_events(
-            Command(resume=mensaje_del_usuario), config, version="v2"
-        ):
-            print(f"---{event["data"]}")
-
+        async for event in graph.astream_events( Command(resume=mensaje_del_usuario), config, version="v2"):
+            if not event:
+                continue
             if (
-                event["event"] == "on_chat_model_stream"
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
+                event["event"] == "on_chain_end"
+                # on_chain_end gets called a bunch of times in a graph execution
+                # This filters out everything except for "graph node finished"
+                and any(t.startswith("graph:step:") for t in event.get("tags", []))
+                and "messages" in event["data"]["output"]
+                
             ):
-                data = event["data"]
-                if data["chunk"].content:
-                    yield data["chunk"].content
-    # print(graph.get_state(config).next)
+                new_messages = event["data"]["output"]["messages"]
+                print(f"####  2222 {new_messages=}")
+                for message in new_messages:
+                    try:
+                        chat_message = ChatMessage.from_langchain(message)
+                        chat_message.run_id = str(run_id)
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                        continue
+                # if chat_message.model_dump()['tool_calls']:
+                #     # print(f"{chat_message.model_dump()['tool_calls'][0]['args']['question']=}")
+                #     # print(f"{chat_message.model_dump()['content']=}")
+                #     # print(f"{chat_message.tool_calls[0]['args']['question']=}")
+                #     chat_message.content = chat_message.tool_calls[0]['args']['question']
+                #     #print(f"{chat_message.model_dump()['content']=}")
+                try:
+                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+                except Exception as e:
+                    continue
+
+        yield "data: [DONE]\n\n"
 
 
 qs = [
@@ -115,6 +251,7 @@ qs = [
     "para el mes de septiembre",
     "resuma nuestra conversación",
 ]
+#%%
 user_input = UserInput(message=qs[2], model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
@@ -122,7 +259,7 @@ async for content in call_graph(graph, user_input):
 
 
 # %%
-user_input = UserInput(message=qs[3], model="gpt-4o", thread_id="0")
+user_input = UserInput(message=qs[4], model="gpt-4o", thread_id="0")
 async for content in call_graph(graph, user_input):
     print(content, end="|")
 

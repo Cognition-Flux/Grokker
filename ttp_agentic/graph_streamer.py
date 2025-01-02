@@ -14,6 +14,7 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from IPython.display import Image, display
 from langchain_core.messages import HumanMessage
@@ -68,33 +69,33 @@ def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
     return kwargs, run_id
 
 
-# %%
 async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None:
     kwargs, run_id = _parse_input(user_input)
     config = {
         "configurable": {"thread_id": kwargs["config"]["configurable"]["thread_id"]}
     }
+    print(graph.get_state(config).next)
     mensaje_del_usuario = kwargs["input"]["messages"][-1]
     node_to_stream: str = "agent"
     if graph.get_state(config).next == () or not graph.get_state(config).next:
         async for event in graph.astream_events(
             {"messages": [mensaje_del_usuario]}, config, version="v2"
         ):
-            if not event:
-                continue
             if (
                 event["event"] == "on_chat_model_stream"
                 and event["metadata"].get("langgraph_node", "") == node_to_stream
             ):
-                data = event["data"]
-                if data["chunk"].content:
-                    yield data["chunk"].content
+                if "tool_calls" in event["data"]["chunk"].additional_kwargs:
+                    tool_calls = event["data"]["chunk"].additional_kwargs["tool_calls"]
+                    yield tool_calls[0]["function"]["arguments"]
+                else:
+                    yield event["data"]["chunk"].content
+            print(graph.get_state(config).next)
     else:
         async for event in graph.astream_events(
             Command(resume=mensaje_del_usuario), config, version="v2"
         ):
-            if not event:
-                continue
+
             if (
                 event["event"] == "on_chat_model_stream"
                 and event["metadata"].get("langgraph_node", "") == node_to_stream
@@ -102,15 +103,78 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                 data = event["data"]
                 if data["chunk"].content:
                     yield data["chunk"].content
+    print(graph.get_state(config).next)
+
+
+qs = [
+    "hola",
+    "que año es?",
+    "necesito el reporte",
+    "para el mes de septiembre",
+    "resuma nuestra conversación",
+]
+user_input = UserInput(message=qs[2], model="gpt-4o", thread_id="0")
+
+async for content in call_graph(graph, user_input):
+    print(content, end="|")
 
 
 # %%
+user_input = UserInput(message=qs[3], model="gpt-4o", thread_id="0")
+async for content in call_graph(graph, user_input):
+    print(content, end="|")
 
-# user_input = UserInput(message="para la ultima semana", model="gpt-4o", thread_id=None)
-# async_generator = call_graph(graph, user_input)
 
-# async for content in async_generator:
-#     print(content, end="|")
+# # %%
+# config = {"configurable": {"thread_id": "3"}}
+# input_message = HumanMessage(content="hola")
+# async for event in graph.astream_events(
+#     {"messages": [input_message]}, config, version="v2"
+# ):
+#     print(
+#         f"Node: {event['metadata'].get('langgraph_node','')}. Type: {event['event']}. Name: {event['name']}"
+#     )
+
+# %%
+config = {"configurable": {"thread_id": "4"}}
+
+print(graph.get_state(config).next)
+node_to_stream = "agent"
+input_message = HumanMessage(content="hola")
+async for event in graph.astream_events(
+    {"messages": [input_message]}, config, version="v2"
+):
+    # Get chat model tokens from a particular node
+    if (
+        event["event"] == "on_chat_model_stream"
+        and event["metadata"].get("langgraph_node", "") == node_to_stream
+    ):
+        # print(event["data"])
+        if "tool_calls" in event["data"]["chunk"].additional_kwargs:
+            tool_calls = event["data"]["chunk"].additional_kwargs["tool_calls"]
+            print(tool_calls[0]["function"]["arguments"])
+        #     for tool_call in tool_calls:
+        #         if "arguments" in tool_call.get("function", {}):
+        #             content = tool_call["function"]["arguments"]
+        #             if content and isinstance(content, str):
+        #                 print(content)
+print(graph.get_state(config).next)
+# %%
+input_message = HumanMessage(content="alejandro")
+async for event in graph.astream_events(
+    Command(resume=input_message), config, version="v2"
+):
+    # Get chat model tokens from a particular node
+    if (
+        event["event"] == "on_chat_model_stream"
+        and event["metadata"].get("langgraph_node", "") == node_to_stream
+    ):
+        print(event["data"])
+
+print(graph.get_state(config).next)
+
+# %%
+
 # %%
 
 
@@ -144,6 +208,26 @@ async def stream_agent(user_input: StreamInput) -> StreamingResponse:
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
+
+# ADD CORS
+
+cors_origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "https://t-agentic-stage.ngrok.dev",
+    "http://127.0.0.1:4040",
+    "http://127.0.0.1:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"http://localhost(:\d+)?",  # Permite http://localhost con cualquier puerto
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 """
 curl -X 'POST' \

@@ -64,6 +64,7 @@ oficinas_seleccionadas = [
 ]
 
 
+# %%
 def get_llm() -> AzureChatOpenAI:
     return AzureChatOpenAI(
         azure_deployment="gpt-4o",
@@ -79,7 +80,7 @@ def get_llm() -> AzureChatOpenAI:
 
 
 class AskHuman(BaseModel):
-    """Ask the human a question"""
+    """Pregunta al usuario su nombre"""
 
     question: str
 
@@ -89,11 +90,22 @@ class GraphState(MessagesState):
     contexto: str = ""
 
 
+@tool
+def mock_tool() -> str:
+    """Mock tool for testing purposes"""
+    return "mock_tool"
+
+
+# tools = [
+#     tool_reporte_general_de_oficinas,
+#     tool_reporte_detallado_por_ejecutivo,
+#     executive_ranking_tool,
+# ]
+
 tools = [
-    tool_reporte_general_de_oficinas,
-    tool_reporte_detallado_por_ejecutivo,
-    executive_ranking_tool,
+    mock_tool,
 ]
+
 tool_node = ToolNode(tools)
 llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
 
@@ -101,15 +113,15 @@ llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
 def call_model(state):
     messages = state["messages"]
 
-    contexto = state.get("contexto", oficinas_seleccionadas)
+    # contexto = state.get("contexto", oficinas_seleccionadas)
 
     system_prompt = SystemMessage(
         content=(
-            f"Oficinas seleccionadas: {contexto}\n\n"
+            # f"Oficinas seleccionadas: {contexto}\n\n"
             "El año actual es 2024."
-            "Usa las herramientas disponibles para responder la pregunta del usuario."
-            "Si el usuario no entrega un periodo de tiempo, usa ask_human para pedirlo."
-            "Si es que Sin data disponible, pidele al usuario otro periodo de tiempo."
+            # "Al inicio del chat, pregunta al usuario su nombre (AskHuman)."
+            "si el usuario dice que quiere el reporte, debes preguntarle con AskHuman el periodo de tiempo a reportar"
+            "cuando el usuaio da su periodo de tiempo, solamento debes llamar mock_tool, decir que se llamó y finalizar."
         )
     )
     response = llm_with_tools.invoke([system_prompt] + messages)

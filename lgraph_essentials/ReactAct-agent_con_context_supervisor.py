@@ -24,6 +24,19 @@ from langgraph.graph.message import add_messages
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
+from ttp_agentic.tools.reporte_general_de_oficinas import reporte_general_de_oficinas
+
+# %%
+office_names = [
+    "001 - Huerfanos 740 EDW",
+    "003 - Cauquenes",
+    "004 - Apoquindo EDW",
+    "009 - Vitacura EDW",
+]
+# Example with days_back
+print(reporte_general_de_oficinas(office_names, days_back=3, corte_espera=900))
+# %%
+
 load_dotenv(override=True)
 
 
@@ -69,7 +82,6 @@ def llamar_llm(
             f"{contexto}\n\n"
             "Si el usuario pregunta por las oficinas seleccionadas, responde "
             "directamente al usuario INFORMANDO las oficinas seleccionadas en el contexto y finaliza."
-            "Si el usuario pregunta por las fechas, TRANSFIERE el control al agente prompt_generator."
         )
     )
     response = llm_with_tools.invoke([system_prompt] + state["messages"], config)
@@ -84,8 +96,27 @@ def generar_contexto(state: State) -> dict:
     try:
         # Obtener el último mensaje
         last_message = state["messages"][-1]
-        # Parsear el contenido como diccionario
-        content = eval(last_message.content)
+
+        # Usar regex para extraer la lista de oficinas
+        import re
+
+        pattern = r"Considera las oficinas \[(.*?)\]"
+        match = re.search(pattern, last_message.content)
+
+        if match:
+            # Extraer el contenido entre corchetes y convertirlo en lista
+            oficinas_str = match.group(1)
+            # Dividir por comas y limpiar espacios y comillas
+            oficinas_list = [
+                office.strip().strip("'") for office in oficinas_str.split(",")
+            ]
+            content = {
+                "oficinas_seleccionadas": oficinas_list,
+                "mensaje": last_message.content,
+            }
+        else:
+            # Si no encuentra el patrón, intentar el eval original
+            content = {}
 
         # Obtener el nuevo set de oficinas
         new_oficinas = set(content.get("oficinas_seleccionadas", []))
@@ -140,8 +171,8 @@ def format_oficinas_context(state_values: dict) -> str:
         return f"Oficina en contexto: {oficinas_list[0]}"
 
     # Unir todas las oficinas con comas y "y" para la última
-    oficinas_str = ", ".join(oficinas_list[:-1]) + " y " + oficinas_list[-1]
-    return f"Elemento seleccionados en contexto: {oficinas_str}"
+    # oficinas_str = ", ".join(oficinas_list[:-1]) + " y " + oficinas_list[-1]
+    return f"Contexto: {reporte_general_de_oficinas(oficinas_list, days_back=3, corte_espera=900)}"
 
 
 def prompt_generator(state: State):
@@ -184,8 +215,9 @@ display(Image(graph.get_graph().draw_mermaid_png()))
 
 config = {"configurable": {"thread_id": "1"}}
 
+
 input_message = HumanMessage(
-    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'que hay seleccionado??'}"
+    content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] dame el SLA de las oficinas'"
 )
 output = graph.invoke({"messages": [input_message]}, config)
 
@@ -195,7 +227,7 @@ for m in output["messages"][-1:]:
 # %%
 
 input_message = HumanMessage(
-    content="{'oficinas_seleccionadas': ['oficina_1', 'oficina_2'], 'mensaje': 'NECESITO consultar fechas'}"
+    content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que periodo es ese SLA?"
 )
 output = graph.invoke({"messages": [input_message]}, config)
 

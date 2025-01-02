@@ -6,12 +6,13 @@ from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from db_instance import _engine
 from dotenv import load_dotenv
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from tools.utilities import (
+
+from ttp_agentic.db_instance import _engine
+from ttp_agentic.tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
@@ -687,10 +688,15 @@ tool_reporte_general_de_oficinas = StructuredTool.from_function(
 )
 
 if __name__ == "__main__":
-    office_names = ["356 - El Bosque", "362 - El Golf"]
+    office_names = [
+        "001 - Huerfanos 740 EDW",
+        "003 - Cauquenes",
+        "004 - Apoquindo EDW",
+        "009 - Vitacura EDW",
+    ]
     # Example with days_back
-    # print(reporte_general_de_oficinas(office_names, days_back=300, corte_espera=900))
+    print(reporte_general_de_oficinas(office_names, days_back=3, corte_espera=900))
 
-    # Example with custom date range
-    f"""{print(tool_reporte_general_de_oficinas.description)=},
-        {print(tool_reporte_general_de_oficinas.invoke("{}"))=}"""
+    # # Example with custom date range
+    # f"""{print(tool_reporte_general_de_oficinas.description)=},
+    #     {print(tool_reporte_general_de_oficinas.invoke("{}"))=}"""

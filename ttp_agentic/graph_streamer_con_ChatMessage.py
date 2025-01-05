@@ -209,6 +209,8 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                 # else:
                 #     yield ''#event["data"]["chunk"].content
             # print(graph.get_state(config).next)
+        yield "data: [DONE]\n\n"
+
     else:
         async for event in graph.astream_events( Command(resume=mensaje_del_usuario), config, version="v2"):
             if not event:
@@ -243,16 +245,21 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
 
         yield "data: [DONE]\n\n"
 
-
+preprompt = "Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] "
 qs = [
-    "hola",
-    "que año es?",
-    "necesito el reporte",
-    "para el mes de septiembre",
-    "resuma nuestra conversación",
+    preprompt+"hola",
+    preprompt+"que año es?",
+    preprompt+"necesito el reporte",
+    preprompt+"para el mes de septiembre",
+    preprompt+"resuma nuestra conversación",
+    preprompt+"que registros hay",
+    preprompt+ "que herramientas tienes?",
+    preprompt+ "dame el reporte general de oficinas",
+
 ]
+
 #%%
-user_input = UserInput(message=qs[3], model="gpt-4o", thread_id="0")
+user_input = UserInput(message='mes de septiembre', model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
     print(content, end="|")

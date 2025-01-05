@@ -9,6 +9,7 @@ os.chdir(file_path.parent)
 sys.path.append(str(file_path.parent.parent))
 import json
 import os
+from datetime import datetime
 from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
 
 from dotenv import load_dotenv
@@ -48,6 +49,7 @@ from typing_extensions import TypedDict
 
 load_dotenv(override=True)
 
+
 # office_names = [
 #     "001 - Huerfanos 740 EDW",
 #     "003 - Cauquenes",
@@ -57,8 +59,6 @@ load_dotenv(override=True)
 # # Example with days_back
 # print(rango_registros_disponibles(office_names))
 # # %%
-
-
 def get_llm() -> AzureChatOpenAI:
     return AzureChatOpenAI(
         azure_deployment="gpt-4o",
@@ -90,15 +90,15 @@ def mock_tool() -> str:
     return "mock_tool"
 
 
-# tools = [
-#     tool_reporte_general_de_oficinas,
-#     tool_reporte_detallado_por_ejecutivo,
-#     executive_ranking_tool,
-# ]
-
 tools = [
-    mock_tool,
+    tool_reporte_general_de_oficinas,
+    tool_reporte_detallado_por_ejecutivo,
+    executive_ranking_tool,
 ]
+
+# tools = [
+#     mock_tool,
+# ]
 
 tool_node = ToolNode(tools)
 llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
@@ -107,15 +107,24 @@ llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
 def call_model(state: GraphState):
     messages = state["messages"]
 
-    contexto = state.get("contexto", "No hay contexto")
+    contexto = state.get(
+        "contexto",
+        "no hay contexto, IGNORA TODO LO DEMÁS Y SOLO PIDELE/SOLICITALE AL USUARIO QUE SELECCIONE OFICINAS!",
+    )
 
     system_prompt = SystemMessage(
         content=(
-            f"Contexto: {contexto}\n\n"
-            "El año actual es 2024."
-            # "Al inicio del chat, pregunta al usuario su nombre (AskHuman)."
-            "si el usuario dice que quiere el reporte, debes preguntarle con AskHuman el periodo de tiempo a reportar"
-            "cuando el usuaio da su periodo de tiempo, solamento debes llamar mock_tool, decir que se llamó y finalizar."
+            f"La fecha de hoy es {datetime.now().strftime('%d/%m/%Y')}\n\n"
+            "Los datos disponibles no necesariamente están actualizados a la fecha de hoy, por lo que debes verificar que registros se pueden analizar.\n\n"
+            f"Contexto de registros disponibles: {contexto}\n\n"
+            "Si el usuario NO proporciona un periodo de tiempo (por ejemplo, ayer, última semana, o algún mes), SIEMPRE debes preguntarle con AskHuman el periodo de tiempo a reportar\n\n"
+            "solamente si el usuario lo requiere explicitamente Puedes ajustar los otros parámetros como el corte de espera, \n\n"
+            "Si no hay datos disponibles, debes indicar los registros disponibles y preguntar si desea continuar con los registros disponibles\n\n"
+            "Si no se especifica por el ususario, SIEMPRE debes preguntar  AskHuman el periodo de tiempo a reportar\n\n"
+            "Resulve rápida y directamente las solicitudes de los usuarios\n\n"
+            "Utilice tablas para oganizar la información\n\n"
+            "Al final de su reporte ponga un analisis breve de los resultados relevantes\n\n"
+            "Cuando las oficinas son seleccionadas en el frontend, no es necesario que las vuelvas a mencionar \n\n"
         )
     )
     response = llm_with_tools.invoke([system_prompt] + messages)
@@ -165,9 +174,10 @@ def generar_contexto(state: GraphState) -> dict:
                 "mensaje": last_message.content,
             }
         else:
-            # Si no encuentra el patrón, intentar el eval original
-            content = {}
-
+            content = {
+                "oficinas_seleccionadas": [],
+                # "mensaje": last_message.content,
+            }
         # Obtener el nuevo set de oficinas
         new_oficinas = set(content.get("oficinas_seleccionadas", []))
         # Obtener el set actual de oficinas
@@ -248,11 +258,23 @@ workflow.add_edge("ask_human", "agent")
 
 memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
-display(Image(graph.get_graph().draw_mermaid_png()))
+
+# display(Image(graph.get_graph().draw_mermaid_png()))
 # %%
 # display(Image(graph.get_graph().draw_mermaid_png()))
 if __name__ == "__main__":
+    display(Image(graph.get_graph().draw_mermaid_png()))
     config = {"configurable": {"thread_id": "1"}}
+
+    input_message = HumanMessage(
+        content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que año es'"
+    )
+    for chunk in graph.stream(
+        {"messages": [input_message]}, config, stream_mode="updates"
+    ):
+        if "agent" in chunk:
+            print(chunk["agent"]["messages"][0].pretty_print())
+    # %%
 
     input_message = HumanMessage(
         content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que registros hay'"

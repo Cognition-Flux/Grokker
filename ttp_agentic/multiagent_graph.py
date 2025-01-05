@@ -50,15 +50,6 @@ from typing_extensions import TypedDict
 load_dotenv(override=True)
 
 
-# office_names = [
-#     "001 - Huerfanos 740 EDW",
-#     "003 - Cauquenes",
-#     "004 - Apoquindo EDW",
-#     "009 - Vitacura EDW",
-# ]
-# # Example with days_back
-# print(rango_registros_disponibles(office_names))
-# # %%
 def get_llm() -> AzureChatOpenAI:
     return AzureChatOpenAI(
         azure_deployment="gpt-4o",

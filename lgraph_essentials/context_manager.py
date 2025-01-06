@@ -132,7 +132,7 @@ builder.add_edge("chat_model_node", END)  #
 memory = MemorySaver()
 
 graph = builder.compile(checkpointer=memory)
-# display(Image(graph.get_graph().draw_mermaid_png()))
+display(Image(graph.get_graph().draw_mermaid_png()))
 
 config = {"configurable": {"thread_id": "2"}}
 # %%

@@ -24,7 +24,7 @@ from langchain_core.messages import (AIMessage, BaseMessage, HumanMessage,
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
-from multiagent_graph import graph
+from multiagent_graph_nuevo_context_manager import graph
 from pydantic import BaseModel, Field
 
 # display(Image(graph.get_graph().draw_mermaid_png()))
@@ -170,7 +170,9 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
     node_to_stream: str = "agent"
     if graph.get_state(config).next == () or not graph.get_state(config).next:
         # Process streamed events from the graph and yield messages over the SSE stream.
-        async for event in graph.astream_events( {"messages": [mensaje_del_usuario]}, config, version="v2"):
+        async for event in graph.astream_events(
+            {"messages": [mensaje_del_usuario]}, config, version="v2"
+        ):
             if not event:
                 continue
 
@@ -181,7 +183,7 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                 # This filters out everything except for "graph node finished"
                 and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 and "messages" in event["data"]["output"]
-                
+                and event["metadata"].get("langgraph_node", "") == node_to_stream
             ):
                 new_messages = event["data"]["output"]["messages"]
                 print(f"#### 11111 {new_messages=}")
@@ -192,17 +194,50 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                     except Exception as e:
                         yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
                         continue
-                if chat_message.model_dump()['tool_calls']:
+                if chat_message.model_dump()["tool_calls"]:
                     # print(f"{chat_message.model_dump()['tool_calls'][0]['args']['question']=}")
                     # print(f"{chat_message.model_dump()['content']=}")
                     # print(f"{chat_message.tool_calls[0]['args']['question']=}")
-                    chat_message.content = chat_message.tool_calls[0]['args']['question']
-                    #print(f"{chat_message.model_dump()['content']=}")
-                try:
-                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
-                except Exception as e:
+                    if "question" in chat_message.tool_calls[0]["args"]:
+                        chat_message.content = chat_message.tool_calls[0]["args"]["question"]
+                    else:
+                        chat_message.content = str(chat_message.tool_calls[0]["args"])
+                # LangGraph re-sends the input message, which feels weird, so drop it
+                if chat_message.type == "human":
                     continue
 
+                # TODO: reconsider this
+                # Currently drop the tool messages
+                # if chat_message.type == "tool":
+                #     continue
+                # # if chat_message.type == "function":
+                # #     continue
+                # # if chat_message.type == "tool_call":
+                # #     continue
+                # # Drop the AI messages with empty content
+                # if chat_message.type == "ai" and chat_message.content == "":
+                #     continue
+
+                # # Drop the AI, Tool, messages
+                # if chat_message.type != "human":
+                #     continue
+                if chat_message.type:
+                    print("##################################################################")
+                    print(f"######################## {chat_message.type=} ###################")
+                    print("##################################################################")
+                    print("##################################################################")
+                    print("##################################################################")
+                    if chat_message.model_dump()["tool_calls"]:
+                        if "input_string" in chat_message.tool_calls[0]["args"]:
+                            print(f"{chat_message.tool_calls[0]['args']['input_string']=}")
+                            continue
+                    try:
+                        yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        continue
+                else:
+                    continue
                 # if "tool_calls" in event["data"]["chunk"].additional_kwargs:
                 #     tool_calls = event["data"]["chunk"].additional_kwargs["tool_calls"]
                 #     yield ''#tool_calls[0]["function"]["arguments"]
@@ -212,7 +247,9 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
         yield "data: [DONE]\n\n"
 
     else:
-        async for event in graph.astream_events( Command(resume=mensaje_del_usuario), config, version="v2"):
+        async for event in graph.astream_events(
+            Command(resume=mensaje_del_usuario), config, version="v2"
+        ):
             if not event:
                 continue
             if (
@@ -221,7 +258,8 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                 # This filters out everything except for "graph node finished"
                 and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 and "messages" in event["data"]["output"]
-                
+                and event["metadata"].get("langgraph_node", "") == node_to_stream
+
             ):
                 new_messages = event["data"]["output"]["messages"]
                 print(f"####  2222 {new_messages=}")
@@ -232,23 +270,34 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
                     except Exception as e:
                         yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
                         continue
-                # if chat_message.model_dump()['tool_calls']:
-                #     # print(f"{chat_message.model_dump()['tool_calls'][0]['args']['question']=}")
-                #     # print(f"{chat_message.model_dump()['content']=}")
-                #     # print(f"{chat_message.tool_calls[0]['args']['question']=}")
-                #     chat_message.content = chat_message.tool_calls[0]['args']['question']
-                #     #print(f"{chat_message.model_dump()['content']=}")
+                # LangGraph re-sends the input message, which feels weird, so drop it
+                # if chat_message.type == "human" and chat_message.content == user_input.message:
+                #     continue
+
+                # TODO: reconsider this
+                # Currently drop the tool messages
+                # if chat_message.type == "tool":
+                #     continue
+
+                # # Drop the AI messages with empty content
+                # if chat_message.type == "ai" and chat_message.content == "":
+                #     continue
+
+                # # Drop the AI, Tool, messages
+                # if chat_message.type != "human":
+                #     continue
                 try:
                     yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
                 except Exception as e:
+                    print(f"Error: {e}")
                     continue
 
         yield "data: [DONE]\n\n"
 
 preprompt = "Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] "
 qs = [
-    preprompt+"hola",
-    preprompt+"que año es?",
+    preprompt+"dame el SLA de todo el mes de noviembre",
+    preprompt+"ahora los ejecutivos",
     preprompt+"necesito el reporte",
     preprompt+"para el mes de septiembre",
     preprompt+"resuma nuestra conversación",
@@ -259,7 +308,7 @@ qs = [
 ]
 
 #%%
-user_input = UserInput(message='mes de septiembre', model="gpt-4o", thread_id="0")
+user_input = UserInput(message=qs[0], model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
     print(content, end="|")

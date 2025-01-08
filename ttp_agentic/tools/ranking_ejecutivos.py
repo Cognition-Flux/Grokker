@@ -3,15 +3,17 @@ import os
 from typing import List, Literal
 
 import pandas as pd
-from db_instance import _engine
 from dotenv import load_dotenv
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-from tools.utilities import (
+
+from ttp_agentic.db_instance import _engine
+from ttp_agentic.tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
     remove_extra_spaces,
+    retry_decorator,
 )
 
 load_dotenv(override=True)
@@ -99,10 +101,6 @@ def top_executives_report(
 {remove_extra_spaces(markdown_table)}
 (los resultados dependen de la disponibilidad de registros válidos)
 """
-
-
-# top_executives_report()
-## %%
 
 
 class RankingEjecutivosInput(BaseModel):

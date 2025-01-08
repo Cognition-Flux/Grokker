@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 def validate_data_consistency(
-    global_stats: pd.DataFrame, data_series: pd.DataFrame, data_executives: pd.DataFrame
+    global_stats: pd.DataFrame,
+    data_series: pd.DataFrame,  # data_executives: pd.DataFrame
 ) -> Tuple[bool, List[str]]:
     """
     Validates data consistency across different tables.
@@ -47,7 +48,7 @@ def validate_data_consistency(
     # Validate total abandonos
     total_abandonos_global = global_stats["Total Abandonos"].iloc[0]
     total_abandonos_series = data_series["Abandonos"].sum()
-    total_abandonos_executives = data_executives["Abandonos"].sum()
+    # total_abandonos_executives = data_executives["Abandonos"].sum()
 
     if total_abandonos_global != total_abandonos_series:
         errors.append(
@@ -55,16 +56,16 @@ def validate_data_consistency(
             f"≠ Suma por series ({total_abandonos_series})"
         )
 
-    if total_abandonos_global != total_abandonos_executives:
-        errors.append(
-            f"Inconsistencia en abandonos: Total global ({total_abandonos_global}) "
-            f"≠ Suma por ejecutivos ({total_abandonos_executives})"
-        )
+    # if total_abandonos_global != total_abandonos_executives:
+    #     errors.append(
+    #         f"Inconsistencia en abandonos: Total global ({total_abandonos_global}) "
+    #         f"≠ Suma por ejecutivos ({total_abandonos_executives})"
+    #     )
 
     # Validate total atenciones
     total_atenciones_global = global_stats["Total Atenciones"].iloc[0]
     total_atenciones_series = data_series["Atenciones"].sum()
-    total_atenciones_executives = data_executives["Atenciones"].sum()
+    # total_atenciones_executives = data_executives["Atenciones"].sum()
 
     if total_atenciones_global != total_atenciones_series:
         errors.append(
@@ -72,11 +73,11 @@ def validate_data_consistency(
             f"≠ Suma por series ({total_atenciones_series})"
         )
 
-    if total_atenciones_global != total_atenciones_executives:
-        errors.append(
-            f"Inconsistencia en atenciones: Total global ({total_atenciones_global}) "
-            f"≠ Suma por ejecutivos ({total_atenciones_executives})"
-        )
+    # if total_atenciones_global != total_atenciones_executives:
+    #     errors.append(
+    #         f"Inconsistencia en atenciones: Total global ({total_atenciones_global}) "
+    #         f"≠ Suma por ejecutivos ({total_atenciones_executives})"
+    #     )
 
     is_valid = len(errors) == 0
     return is_valid, errors
@@ -356,7 +357,7 @@ def compute_daily_statistics(
         "Atenciones Totales",
         "Promedio Atenciones por Escritorio",
         "Escritorios Utilizados",
-        "Ejecutivos Atendieron",
+        "Ejecutivos que Atendieron",
         "Abandonos",
         "Nivel de Servicio (%)",
         "Tiempo de Espera Promedio (minutos)",
@@ -372,7 +373,7 @@ def compute_daily_statistics(
         "Atenciones Totales",
         "Promedio Atenciones por Escritorio",
         "Escritorios Utilizados",
-        "Ejecutivos Atendieron",
+        "Ejecutivos que Atendieron",
         "Abandonos",
         "Nivel de Servicio (%)",
         "Tiempo de Espera Promedio (minutos)",
@@ -439,13 +440,14 @@ def get_office_stats(
     # Compute Statistics per Series
     data_series = compute_series_statistics(office_data, total_atenciones)
 
-    # Compute Statistics per Executive
-    data_executives = compute_executive_statistics(office_data, total_atenciones)
-    executive_names = data_executives["Ejecutivo"].unique()
+    # # Compute Statistics per Executive
+    # data_executives = compute_executive_statistics(office_data, total_atenciones)
+    # executive_names = data_executives["Ejecutivo"].unique()
 
     # Validate Data Consistency
     is_valid, errors = validate_data_consistency(
-        global_stats, data_series, data_executives
+        global_stats,
+        data_series,  # data_executives
     )
 
     # Compute Daily Statistics
@@ -454,14 +456,13 @@ def get_office_stats(
     # Convert DataFrames to Markdown
     global_stats_table = global_stats.to_markdown(index=False)
     markdown_table_series = data_series.to_markdown(index=False)
-    markdown_table_executives = data_executives.to_markdown(index=False)
+    # markdown_table_executives = data_executives.to_markdown(index=False)
     markdown_table_daily = daily_stats.to_markdown(index=False)
 
     # Build the report string
     corte_espera_min = corte_espera / 60.0
     start_date_str = start_date.strftime("%d/%m/%Y")
     end_date_str = end_date.strftime("%d/%m/%Y")
-    today_str = datetime.now().strftime("%d/%m/%Y")
 
     report = f"""
 ### --------------------------------reporte para extraer información específica que requiere el usuario (solo extraer lo necesario, no mostrar estas tablas completas)----------------------------
@@ -477,9 +478,9 @@ El período analizado es desde {start_date_str} hasta {end_date_str}
             report += f"* {error}\n"
 
     # Add the list of executive names
-    report += "\n## Lista de Ejecutivos\n"
-    for name in executive_names:
-        report += f"* {name}\n"
+    # report += "\n## Lista de Ejecutivos\n"
+    # for name in executive_names:
+    #     report += f"* {name}\n"
 
     report += f"""
 ## *Resumen de la sucursal/oficina* (usar la siguiente tabla cuando usuario solicita información general, resumen, o metricas/indicadores resumidos) solo extraer lo necesario.
@@ -487,9 +488,6 @@ El período analizado es desde {start_date_str} hasta {end_date_str}
 
 ## Indicadores por serie. solo extraer lo necesario
 {remove_extra_spaces(markdown_table_series)}
-
-## Atenciones por ejecutivo (ordenados descendente por Promedio Atenciones Diarias). solo extraer lo necesario
-{remove_extra_spaces(markdown_table_executives)}
 
 ## Desempeño diario de la sucursal/oficina. solo extraer lo necesario
 {remove_extra_spaces(markdown_table_daily)}
@@ -657,12 +655,10 @@ class ReporteDetalladoPorOficina(BaseModel):
 Utilizar para obtener información/indicadores sobre Oficinas.
 Parameters:
 {params_doc}
-Returns: 
-Lista de Ejecutivos
-Resumen de la sucursal/oficina: Total Atenciones Tiempo de Espera Abandonos Promedio Atenciones Diarias Nivel de Servicio (SLA)  Ejecutivos  Escritorios
-Atenciones por ejecutivo.
-Indicadores por serie.
-Desempeño diario (Atenciones Totales por día)
+Returns
+RESUMEN: de la sucursal/oficina: Total Atenciones Tiempo de Espera Abandonos Promedio Atenciones Diarias Nivel de Servicio (o SLA)  Ejecutivos  Escritorios
+SERIES: Indicadores por serie.
+DIARIO: Desempeño diario (Atenciones Totales por día).
 """.format(
         params_doc=ReporteDetalladoPorOficina.get_documentation_for_tool()
     )

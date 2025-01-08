@@ -5,10 +5,11 @@ from typing import List, Literal
 
 import numpy as np
 import pandas as pd
-from db_instance import _engine
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-from tools.utilities import (
+
+from ttp_agentic.db_instance import _engine
+from ttp_agentic.tools.utilities import (
     add_docstring,
     get_documentation,
     parse_input,
@@ -120,9 +121,9 @@ Global:
 Tiempo total {"en Pausas" if evento == "P" else "atendiendo"}: {tiempo_total_en_el_evento/60:.2f} horas
 Promedio diario de tiempo {"en Pausas" if evento == "P" else "atendiendo"}: {promedio_diario_de_tiempo_en_el_evento if evento == "P" else promedio_diario_de_tiempo_en_el_evento/60:.2f} {"minutos" if evento == "P" else "horas"}
 Promedio diario de cantidad de {tipo_evento}: {int(promedio_cantidad)}
-Detalles:
-{reporte_e}
 """
+                # Detalles:
+                # {'reporte_e'}
                 return (
                     reporte_final,
                     tiempo_total_en_el_evento,
@@ -416,16 +417,15 @@ class ReporteDetalladoPorEjecutivo(BaseModel):
 
 
 @add_docstring(
-    """
-Detalles de ejecutivos
+    """Detalles de ejecutivos
 Utilizar sólo cuando el usuario/humano explícitamente requiera información detallada o solicite profundizar sobre ejecutivos.
 Parameters:
 {params_doc}
 Para obtener un único día start_date y end_date deben ser iguales a la fecha requerida.
-Returns: 
+Returns:
 Reporte detallado con información sobre uno o más ejecutivos para un período de tiempo.
-El reporte entrega Oficina, Series que atiende, Resumen de atenciones diarias y tiempo en Pausas. 
-Importante: Extraer y sintetizar únicamente la información específica que el usuario/humano requiere, nunca muestre todo el reporte, nunca.
+El reporte detallado de ejecutivos entrega Oficina, Series que atiende, Resumen de atenciones diarias.
+Total de atenciones, Promedio diario de tiempo por atención, cantidad de Pausas, tiempo en Pausas, porcentaje de tiempo en pausa.
 """.format(
         params_doc=ReporteDetalladoPorEjecutivo.get_documentation_for_tool()
     )
@@ -447,7 +447,8 @@ tool_reporte_detallado_por_ejecutivo = StructuredTool.from_function(
     return_direct=True,
 )
 if __name__ == "__main__":
-    input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
+    # input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
+    input_string = '{"executive_names":["Luis Hernan Labarca Montecino"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
 
     f"""{print(tool_reporte_detallado_por_ejecutivo.description)=},
         {print(tool_reporte_detallado_por_ejecutivo.invoke(

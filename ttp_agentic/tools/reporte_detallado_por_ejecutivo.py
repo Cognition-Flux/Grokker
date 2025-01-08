@@ -423,7 +423,7 @@ Parameters:
 {params_doc}
 Para obtener un único día start_date y end_date deben ser iguales a la fecha requerida.
 Returns: 
-Reporte detallado con información sobre uno o más ejecutivos para un perído de tiempo.
+Reporte detallado con información sobre uno o más ejecutivos para un período de tiempo.
 El reporte entrega Oficina, Series que atiende, Resumen de atenciones diarias y tiempo en Pausas. 
 Importante: Extraer y sintetizar únicamente la información específica que el usuario/humano requiere, nunca muestre todo el reporte, nunca.
 """.format(

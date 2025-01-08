@@ -44,7 +44,7 @@ from pydantic import BaseModel, Field
 from tools.ranking_ejecutivos import executive_ranking_tool
 from tools.registros_disponibles import rango_registros_disponibles
 from tools.reporte_detallado_por_ejecutivo import tool_reporte_detallado_por_ejecutivo
-from tools.reporte_general_de_oficinas import tool_reporte_general_de_oficinas
+from tools.reporte_general_de_oficinas import tool_reporte_extenso_de_oficinas
 from typing_extensions import TypedDict
 
 load_dotenv(override=True)
@@ -82,7 +82,7 @@ def mock_tool() -> str:
 
 
 tools = [
-    tool_reporte_general_de_oficinas,
+    tool_reporte_extenso_de_oficinas,
     tool_reporte_detallado_por_ejecutivo,
     executive_ranking_tool,
 ]
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     config = {"configurable": {"thread_id": "1"}}
 
     input_message = HumanMessage(
-        content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que año es'"
+        content="'Considera las oficinas ['001 - Huerfanos 740 EDW'] noviembre'"
     )
     for chunk in graph.stream(
         {"messages": [input_message]}, config, stream_mode="updates"

@@ -466,10 +466,9 @@ def get_office_stats(
     report = f"""
 ### --------------------------------reporte para extraer información específica que requiere el usuario (solo extraer lo necesario, no mostrar estas tablas completas)----------------------------
 # Reporte para la oficina: {office_name}
- el período se ajustó a la disponibilidad de los datos así:
-el período válido es desde {start_date_str} hasta {end_date_str}
-* Nivel de servicio (SLA) se define como el porcentaje de clientes que esperaron menos de un máximo (umbral) de tiempo de espera.
-* Tiempo máximo de espera para Nivel de Servicio (SLA): {corte_espera_min:.1f} minutos.
+El período analizado es desde {start_date_str} hasta {end_date_str}
+* Nivel de servicio (o SLA) se define como el porcentaje de clientes que esperaron menos de un máximo (umbral) de tiempo de espera.
+* Tiempo máximo de espera para Nivel de Servicio (o SLA): {corte_espera_min:.1f} minutos.
 """
 
     if not is_valid:
@@ -483,16 +482,16 @@ el período válido es desde {start_date_str} hasta {end_date_str}
         report += f"* {name}\n"
 
     report += f"""
-## Resumen Global
+## *Resumen de la sucursal/oficina* (usar la siguiente tabla cuando usuario solicita información general, resumen, o metricas/indicadores resumidos) solo extraer lo necesario.
 {remove_extra_spaces(global_stats_table)}
 
-## Atenciones por serie
+## Indicadores por serie. solo extraer lo necesario
 {remove_extra_spaces(markdown_table_series)}
 
-## Atenciones por ejecutivo (ordenados descendente por Promedio Atenciones Diarias)
+## Atenciones por ejecutivo (ordenados descendente por Promedio Atenciones Diarias). solo extraer lo necesario
 {remove_extra_spaces(markdown_table_executives)}
 
-## Desempeño diario de la oficina
+## Desempeño diario de la sucursal/oficina. solo extraer lo necesario
 {remove_extra_spaces(markdown_table_daily)}
 ### ---------------------------------------------------------------
 """
@@ -654,18 +653,16 @@ class ReporteDetalladoPorOficina(BaseModel):
 
 
 @add_docstring(
-    """
-Reporte Oficina
-Utilizar cuando el usuario/humano requiera información sobre Oficinas.
+    """Reporte por Oficina
+Utilizar para obtener información/indicadores sobre Oficinas.
 Parameters:
 {params_doc}
-Para obtener un único día start_date y end_date deben ser iguales a la fecha requerida.
 Returns: 
-Total Atenciones Tiempo de Espera  Abandonos Promedio Atenciones Diarias Nivel de Servicio (SLA)   Ejecutivos  Escritorios
-## Atenciones por ejecutivo
-## Desempeño diario
-| Oficina  | Día  | Fecha  |  Atenciones Totales
-Importante: Extraer y sintetizar únicamente la información específica que el usuario/humano requiere, nunca muestre todo el reporte, nunca.
+Lista de Ejecutivos
+Resumen de la sucursal/oficina: Total Atenciones Tiempo de Espera Abandonos Promedio Atenciones Diarias Nivel de Servicio (SLA)  Ejecutivos  Escritorios
+Atenciones por ejecutivo.
+Indicadores por serie.
+Desempeño diario (Atenciones Totales por día)
 """.format(
         params_doc=ReporteDetalladoPorOficina.get_documentation_for_tool()
     )
@@ -680,9 +677,9 @@ def get_reporte_general_de_oficinas(input_string: str) -> str:
 
 
 # Create the structured tool
-tool_reporte_general_de_oficinas = StructuredTool.from_function(
+tool_reporte_extenso_de_oficinas = StructuredTool.from_function(
     func=get_reporte_general_de_oficinas,
-    name="get_reporte_general_de_oficinas",
+    name="get_reporte_extenso_de_oficinas",
     description=get_reporte_general_de_oficinas.__doc__,
     return_direct=True,
 )
@@ -690,9 +687,6 @@ tool_reporte_general_de_oficinas = StructuredTool.from_function(
 if __name__ == "__main__":
     office_names = [
         "001 - Huerfanos 740 EDW",
-        "003 - Cauquenes",
-        "004 - Apoquindo EDW",
-        "009 - Vitacura EDW",
     ]
     # Example with days_back
     print(reporte_general_de_oficinas(office_names, days_back=3, corte_espera=900))

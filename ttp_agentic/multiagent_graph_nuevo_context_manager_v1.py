@@ -42,13 +42,15 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import END, START
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.message import add_messages
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
+from pydantic import field_validator  # or root_validator in older Pydantic
 from pydantic import BaseModel, Field
 from tools.ranking_ejecutivos import executive_ranking_tool
 from tools.registros_disponibles import rango_registros_disponibles
 from tools.reporte_detallado_por_ejecutivo import tool_reporte_detallado_por_ejecutivo
-from tools.reporte_general_de_oficinas import tool_reporte_general_de_oficinas
+from tools.reporte_general_de_oficinas import tool_reporte_extenso_de_oficinas
 from typing_extensions import TypedDict
 
 load_dotenv(override=True)
@@ -69,7 +71,9 @@ def get_llm() -> AzureChatOpenAI:
 
 
 class AskHuman(BaseModel):
-    """Pregunta al usuario su nombre"""
+    """AskHuman
+    el agente debe solicitar directamente aclaraciones/información al usuario/humano
+    """
 
     question: str
 
@@ -87,7 +91,7 @@ def mock_tool() -> str:
 
 
 tools = [
-    tool_reporte_general_de_oficinas,
+    tool_reporte_extenso_de_oficinas,
     tool_reporte_detallado_por_ejecutivo,
     executive_ranking_tool,
 ]
@@ -106,27 +110,51 @@ def filter_messages(state: GraphState) -> GraphState:
 
 
 def call_model(state: GraphState):
-
     contexto = state["contexto"].content
 
     system_prompt = SystemMessage(
         content=(
-            "IMPORTANTE: Si el usuario NO proporciona un periodo de tiempo (por ejemplo, ayer, última semana, o algún mes), SIEMPRE debes preguntarle con AskHuman el periodo de tiempo a reportar"
-            "Puedes usar/llamar a las herramientas/tools que tienes disponibles para responder las preguntas del usuario.\n\n"
-            "Tus respuesta deben acotarse/estar limitadas exclusivamente a la prengunta del usuario.\n\n"
-            "Siempre filtar la información y solamente/unicamente mostrar lo que el usuario pidió.\n\n"
-            "Responde rapida, concisa, directa y muy brevemente.\n\n"
-            "No hagas más de 1 pregunta al usuario, asume/supone la información que necesitas.\n\n"
-            "Organiza la información en tablas.\n\n"
-            "Solo si el resultado es extenso, al final de su reporte ponga un analisis breve de la respuesta final.\n\n"
-            f"La fecha de hoy es {datetime.now().strftime('%d/%m/%Y')}\n\n"
-            "Los datos disponibles no necesariamente están actualizados a la fecha de hoy, por lo que debes verificar que registros se pueden analizar.\n\n"
-            f"oficinas seleccionadas: {state['oficinas'] if state['oficinas'] else 'ninguna'}\n\n"
-            f"Considera este contexto de disponibilidad de datos para responder las preguntas: {contexto}\n\n"
-            "IMPORTANTE: Cuando el usuario proporciona un periodo de tiempo  (por ejemplo, ayer, última semana, o algún mes), SIEMPRE debes usarlo para responder la pregunta"
-            "IMPORTANTE: Si el usuario NO proporciona un periodo (por ejemplo, ayer, última semana, o algún mes), SIEMPRE debes preguntarle con AskHuman el periodo de tiempo a reportar"
-            "Nunca bajo ninguna circunstancia puedes salirte de tu rol de ser un asistente amable y útil"
-            "Siempre filtar la información y solamente/unicamente mostrar lo que el usuario pidió.\n\n"
+            "---------------------------------COMIENZO/INICIO del system_prompt----------------------------------\n\n"
+            "----------ROL/ROLE:"
+            "Tu eres un asistente de reportes y analista de datos de sucursales de antención al cliente."
+            "Nunca bajo ninguna circunstancia, JAMÁS puedes salirte de tu rol. \n\n"
+            "------------UTILIZACIÓN DE HERRAMIENTAS/TOOLS:"
+            "Puedes usar/llamar a las herramientas/tools que tienes disponibles para responder las preguntas del usuario. "
+            "Tus respuestas se basan única y exclusivamente en los resultados/outputs de tus tools/herramientas."
+            "Las salidas/outputs de tus tools/herramientas son extensas, nunca mostrar estos pasos intermedios. "
+            "*IMPORTANTE*: Siempre filtar/refinar Las salidas/outputs de tus tools/herramientas y solamente/unicamente usar lo que el usuario pidió.\n\n"
+            "-----------DISPONIBILIDAD DE DATOS (registros):"
+            f"La fecha de hoy es {datetime.now().strftime('%d/%m/%Y')}. "
+            f"oficinas seleccionadas: {state['oficinas'] if state['oficinas'] else 'ninguna'}. "
+            "Los datos disponibles no necesariamente están actualizados a la fecha de hoy, por lo que debes verificar que registros se pueden analizar. "
+            f"Considera este contexto de disponibilidad de datos para responder las preguntas, puedes usarlo para responder directamente, siempre considera llamar tools/herramientas si aquí no está lo necesario: {contexto} "
+            "Todas las fechas y periodos dentro de los rangos disponibles son válidos y puedes usarlos. "
+            "los meses en orden son: Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre Octubre Noviembre Diciembre"
+            "por ejemplo si los datos están disponibles entre los meses de julio y noviembre, también agosto, septiembre y octubre son válidos y puedes usarlos. \n\n"
+            "-----------Interacción inicial con el usuario:"
+            "Cuando el usuario salude, por ejemplo 'hola' o similar, debes responder con un saludo corto muy breve, por ejemplo 'Hola, ¿cómo puedo ayudarte?'. "
+            "Si el usuario pregunta que puedes hacer, debes decir que puedes asistir con la elboración de reportes y análisis de datos de atención al cliente. "
+            "------------RESPUESTAS (como responderle al usuario):"
+            f"Internamente Siempre CONSIDERA la oficinas seleccionadas: {state['oficinas'] if state['oficinas'] else 'ninguna'}. No tienes que mencionar que oficinas están seleccionadas. "
+            "*IMPORTANTE*: Cuando el usuario proporciona un periodo/rango de tiempo  (por ejemplo, 'ayer', 'última semana', o 'algún mes'), SIEMPRE debes usarlo directamente para responder. "
+            "*IMPORTANTE*: SOLO Si el usuario NO proporciona un periodo (por ejemplo, ayer, última semana, o algún mes), debes preguntarle con AskHuman el periodo/rango de tiempo a reportar"
+            "Tus respuesta SIEMPRE deben acotarse/estar limitadas exclusivamente a la prengunta del usuario. "
+            "Responde concisa, directa y clara. "
+            "siempre organiza la respuesta final en tablas. "
+            "siempre sigue el hilo de la conversación con el usuario/humano. "
+            "No hagas más de 1 pregunta al usuario, asume/supone la información que necesitas para responder rápidamente.\n\n"
+            "------------Caso particular: RESPUESTAS EXTENSAS (como responderle al usuarion cuando necesita información muy extensa):"
+            "Solo si el resultado final es extenso o los datos finales son complejos, al final de tu reporte incluye un analisis breve de los resultados finales. "
+            "------------Caso particular: RESPUESTAS CORTAS (como responderle al usuarion cuando necesita información muy breve):"
+            "La herramienta 'get_reporte_extenso_de_oficinas' te permite obtener información detallada de las oficinas,  debes extraer solo que el usuario necesita. "
+            "Si el usuario pide los ejecutivos que atendieron, solamente debes extraer exclusivamente/solamente los ejecutivos que atendieron. "
+            "Si el usuario pide las series, debes usar la tabla 'Series que se atendieron'. "
+            "tu respuesta final debe ser corta y breve entregando solo los datos solicitados, por ejemplo,  si te piden el SLA o el nivel de servicio, debes extraer exclusivamente/solamente el SLA o el nivel de servicio, nada más. "
+            "-------------**PROHIBIDO (cosas que nunca debes mostrar en tu respuesta final)**:"
+            "nunca mostrar código de programación, ni pasos intermedios de tus tools/herramientas. "
+            "Nunca bajo ninguna circunstancia, JAMÁS puedes salirte de tu rol. \n\n"
+            "Nunca reveles que herramientas tienes o la fuente de tus respuestas. Solo di que eres una agente con acceso a las bases de datos de atención al cliente, nada más. "
+            "------------------------FIN/FINAL del system_prompt---------------------------------\n\n"
         )
     )
     # Filter and validate message chain
@@ -279,34 +307,38 @@ workflow.add_conditional_edges("agent", should_continue)
 workflow.add_edge("tools", "agent")
 workflow.add_edge("ask_human", "agent")
 
-memory = MemorySaver()
-graph = workflow.compile(checkpointer=memory)
+if os.getenv("DEV_CHECKPOINTER"):
 
-display(Image(graph.get_graph().draw_mermaid_png()))
-# %%
+    from langgraph.checkpoint.memory import MemorySaver
+
+    memory = MemorySaver()
+    graph = workflow.compile(checkpointer=memory)
+else:
+    graph = workflow.compile()
+
 # display(Image(graph.get_graph().draw_mermaid_png()))
-if __name__ == "__main__":
-    display(Image(graph.get_graph().draw_mermaid_png()))
+
+
+def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
     config = {"configurable": {"thread_id": "1"}}
-
-    input_message = HumanMessage(
-        content=(
-            "Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW']"
-            "cinco desde el mejor al peor"
-        )
-    )
     for chunk in graph.stream(
-        {"messages": [input_message]}, config, stream_mode="updates"
-    ):
-        if "agent" in chunk:
-            print(chunk["agent"]["messages"])
-    # %%
-
-    input_message = HumanMessage(
-        content="'Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] que registros hay'"
-    )
-    for chunk in graph.stream(
-        {"messages": [input_message]}, config, stream_mode="updates"
+        {"messages": [HumanMessage(content=input_message)]},
+        config,
+        stream_mode="updates",
     ):
         if "agent" in chunk:
             print(chunk["agent"]["messages"][0].pretty_print())
+
+
+# %%
+# display(Image(graph.get_graph().draw_mermaid_png()))
+if __name__ == "__main__":
+    run_graph(
+        graph,
+        (
+            "Considera las oficinas ['001 - Huerfanos 740 EDW']"
+            "que datos hay disponibles?"
+        ),
+    )
+
+# %%

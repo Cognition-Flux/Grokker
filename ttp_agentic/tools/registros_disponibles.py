@@ -31,58 +31,63 @@ logger = logging.getLogger(__name__)
 @retry_decorator(max_retries=5, delay=1.0)
 def rango_registros_disponibles(office_names: List[str]) -> pd.DataFrame:
     """
-    Get the most recent and oldest valid records for specified offices.
+    Genera una tabla con información de registros disponibles por mes para cada
+    oficina dada en la lista de oficinas, incluyendo días disponibles, total
+    de atenciones y además muestra la primera y última fecha (first_valid_date,
+    last_valid_date) donde existan registros en cada mes de la consulta.
+
+    Retorna un DataFrame con las columnas:
+      - oficina
+      - mes (en formato AAAA-MM)
+      - first_valid_date (fecha mínima del mes)
+      - last_valid_date (fecha máxima del mes)
+      - total_dias_registrados (cuántos días del mes hay registros)
+      - total_atenciones (número de atenciones totales en ese mes)
 
     Args:
-        office_names (List[str]): List of office names to query.
+        office_names (List[str]): Lista con los nombres de las oficinas
+            a consultar en la base de datos.
 
     Returns:
-        pd.DataFrame: DataFrame containing office names and their date ranges.
+        pd.DataFrame: DataFrame que muestra, para cada oficina y mes:
+            - Fecha mínima y fecha máxima con registros.
+            - Número de días con registros.
+            - Cantidad de atenciones totales.
     """
-    query = text(
+    monthly_query = text(
         """
         SELECT 
-            o.[Oficina],
-            MIN(a.[FH_Emi]) as first_valid_date,
-            MAX(a.[FH_Emi]) as last_valid_date,
-            COUNT(DISTINCT CAST(a.[FH_Emi] AS DATE)) as total_days_with_data
+            o.[Oficina] AS oficina,
+            FORMAT(a.[FH_Emi], 'yyyy-MM') AS mes,
+            MIN(CAST(a.[FH_Emi] AS DATE)) AS first_valid_date,
+            MAX(CAST(a.[FH_Emi] AS DATE)) AS last_valid_date,
+            COUNT(DISTINCT CAST(a.[FH_Emi] AS DATE)) AS total_dias_registrados,
+            COUNT(*) AS total_atenciones
         FROM [dbo].[Atenciones] a
         JOIN [dbo].[Oficinas] o ON o.[IdOficina] = a.[IdOficina]
         WHERE o.[Oficina] IN :office_names
-        AND a.[FH_Emi] IS NOT NULL
-        GROUP BY o.[Oficina]
-        ORDER BY o.[Oficina]
-    """
+            AND a.[FH_Emi] IS NOT NULL
+        GROUP BY o.[Oficina], FORMAT(a.[FH_Emi], 'yyyy-MM')
+        ORDER BY o.[Oficina], mes
+        """
     )
 
     try:
         with _engine.connect() as conn:
-            date_ranges = pd.read_sql_query(
-                query, conn, params={"office_names": tuple(office_names)}
+            monthly_data = pd.read_sql_query(
+                monthly_query,
+                conn,
+                params={"office_names": tuple(office_names)},
             )
 
-        if date_ranges.empty:
-            logger.warning("No data found for the specified offices")
+        if monthly_data.empty:
+            logger.warning("No se encontraron datos para las oficinas especificadas.")
             return pd.DataFrame()
 
-        # Primero calculamos total_weeks con las fechas originales
-        # date_ranges["total_weeks"] = (
-        #     (date_ranges["last_valid_date"] - date_ranges["first_valid_date"]).dt.days
-        #     / 7
-        # ).round(1)
-
-        # Luego formateamos las fechas para mostrar
-        date_ranges["first_valid_date"] = pd.to_datetime(
-            date_ranges["first_valid_date"]
-        ).dt.strftime("%d-%m-%Y")
-        date_ranges["last_valid_date"] = pd.to_datetime(
-            date_ranges["last_valid_date"]
-        ).dt.strftime("%d-%m-%Y")
-
-        return date_ranges
+        return monthly_data
 
     except Exception as e:
-        logger.error(f"Error fetching date ranges: {e}")
+        logger.error(f"Error al consultar los registros disponibles por mes: {e}")
         raise
 
 

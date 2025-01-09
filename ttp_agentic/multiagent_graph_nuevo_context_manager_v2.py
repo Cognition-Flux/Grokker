@@ -106,7 +106,7 @@ llm_with_tools = get_llm().bind_tools(tools + [AskHuman])
 
 def filter_messages(state: GraphState) -> GraphState:
     messages = state["messages"]
-    if len(messages) <= 4:
+    if len(messages) <= 10:
         return {"messages": []}
 
     # Keep track of tool calls and their responses
@@ -122,7 +122,7 @@ def filter_messages(state: GraphState) -> GraphState:
             tool_call_ids_responded.add(msg.tool_call_id)
 
     # Calculate how many messages to keep from the end
-    keep_last_n = 4
+    keep_last_n = 10
     messages_to_remove = messages[:-keep_last_n]
 
     # Verify we're not breaking any tool call chains
@@ -360,7 +360,9 @@ def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
         stream_mode="updates",
     ):
         if "agent" in chunk:
-            print(chunk["agent"]["messages"][0].pretty_print())
+            if isinstance(chunk["agent"]["messages"][0], AIMessage):
+                print(f"{chunk['agent']['messages'][0]=}")
+                print(chunk["agent"]["messages"][0].pretty_print())
 
 
 # display(Image(graph.get_graph().draw_mermaid_png()))
@@ -385,7 +387,7 @@ if __name__ == "__main__":
         graph,
         (
             "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
-            + qs[3]
+            + qs[0]
         ),
     )
 

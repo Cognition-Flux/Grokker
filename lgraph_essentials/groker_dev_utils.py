@@ -4,6 +4,7 @@ import re
 import sys
 from pathlib import Path
 
+####
 # Set working directory to file location
 file_path = Path(__file__).resolve()
 os.chdir(file_path.parent)

@@ -1,18 +1,15 @@
 # %%
-import os
-import re
-import sys
-from pathlib import Path
-
 ####
 # Set working directory to file location
-file_path = Path(__file__).resolve()
-os.chdir(file_path.parent)
-sys.path.append(str(file_path.parent.parent))
+# file_path = Path(__file__).resolve()
+# os.chdir(file_path.parent)
+# sys.path.append(str(file_path.parent.parent))
 import json
 import os
 import re
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
 
 from dotenv import load_dotenv
@@ -65,10 +62,20 @@ class CustomGraphState(MessagesState):
     messages: Annotated[List[BaseMessage], add_messages]
 
 
-def safely_remove_messages(state: CustomGraphState) -> List[BaseMessage]:
+def safely_remove_messages(
+    state: CustomGraphState, keep_last_n: int = 14
+) -> List[BaseMessage]:
+    """
+    Revisa los mensajes del estado y determina cuáles pueden ser removidos de forma segura.
 
+    Args:
+        state: Estado actual del grafo
+
+    Returns:
+        Lista de mensajes que pueden ser removidos
+    """
     messages = state["messages"]
-    if len(messages) <= 10:
+    if len(messages) <= keep_last_n:
         return []
 
     # Keep track of tool calls and their responses
@@ -84,7 +91,6 @@ def safely_remove_messages(state: CustomGraphState) -> List[BaseMessage]:
             tool_call_ids_responded.add(msg.tool_call_id)
 
     # Calculate how many messages to keep from the end
-    keep_last_n = 10
     messages_to_remove = messages[:-keep_last_n]
 
     # Verify we're not breaking any tool call chains
@@ -93,9 +99,56 @@ def safely_remove_messages(state: CustomGraphState) -> List[BaseMessage]:
             for tool_call in msg.tool_calls:
                 if tool_call["id"] in tool_call_ids_responded:
                     # Don't remove messages that have corresponding tool responses
-                    return {"messages": []}
+                    return []
         if isinstance(msg, ToolMessage):
             if msg.tool_call_id in tool_call_ids_seen:
                 # Don't remove tool responses that have corresponding tool calls
-                return {"messages": []}
+                return []
+
     return messages_to_remove
+
+
+def validate_message_chain(messages: List[BaseMessage]) -> List[BaseMessage]:
+    """
+    Valida y filtra la cadena de mensajes para asegurar que todas las llamadas a herramientas
+    tengan sus respectivas respuestas.
+
+    Args:
+        messages: Lista de mensajes a validar
+
+    Returns:
+        Lista filtrada de mensajes
+    """
+    filtered_messages = []
+    tool_call_ids_seen = set()
+    tool_call_ids_responded = set()
+
+    for msg in messages:
+        if isinstance(msg, RemoveMessage):
+            continue
+
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for tool_call in msg.tool_calls:
+                tool_call_ids_seen.add(tool_call["id"])
+
+        if isinstance(msg, ToolMessage):
+            tool_call_ids_responded.add(msg.tool_call_id)
+
+        filtered_messages.append(msg)
+
+    # Check if we have any unresponded tool calls
+    missing_responses = tool_call_ids_seen - tool_call_ids_responded
+    if missing_responses:
+        print(f"Warning: Missing tool responses for: {missing_responses}")
+        # Only keep messages up to the last complete tool exchange
+        filtered_messages = [
+            msg
+            for msg in filtered_messages
+            if not (
+                isinstance(msg, AIMessage)
+                and msg.tool_calls
+                and any(call["id"] in missing_responses for call in msg.tool_calls)
+            )
+        ]
+
+    return filtered_messages

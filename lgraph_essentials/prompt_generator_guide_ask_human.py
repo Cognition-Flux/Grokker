@@ -75,35 +75,20 @@ def make_prompt(sub_prompt: str):
 tool_node_prompt = ToolNode([make_prompt])
 tool_node_internet = ToolNode([search_tool])
 
-# Set up the model
 
-
-# We are going "bind" all tools to the model
-# We have the ACTUAL tools from above, but we also need a mock tool to ask a human
-# Since `bind_tools` takes in tools but also just tool definitions,
-# We can define a tool definition for `ask_human`
 class AskHuman(BaseModel):
     """Ask the human a question"""
 
     question: str
 
 
-# Define nodes and conditional edges
-
-
-# Define the function that determines whether to continue or not
 def should_continue(state) -> Literal[END, "ask_human", "tool_node_prompt"]:
     messages = state["messages"]
     last_message = messages[-1]
-    # If there is no function call, then we finish
     if not last_message.tool_calls:
         return END
-    # If tool call is asking Human, we return that node
-    # You could also add logic here to let some system know that there's something that requires Human input
-    # For example, send a slack message, etc
     elif last_message.tool_calls[0]["name"] == "AskHuman":
         return "ask_human"
-    # Otherwise if there is, we continue
     else:
         return "tool_node_prompt"
 
@@ -154,14 +139,13 @@ def search_internet(state) -> Command[Literal["tool_node_internet", END]]:
 # We define a fake node to ask the human
 def ask_human(state):
     tool_call_id = state["messages"][-1].tool_calls[0]["id"]
-    location = interrupt("Por favor, proporciona información")
-    tool_message = [{"tool_call_id": tool_call_id, "type": "tool", "content": location}]
+    intervencion_humana = interrupt("Por favor, proporciona información")
+    tool_message = [
+        {"tool_call_id": tool_call_id, "type": "tool", "content": intervencion_humana}
+    ]
     return {"messages": tool_message}
 
 
-# Build the graph
-
-# Define a new graph
 workflow = StateGraph(MessagesState)
 
 # Define the three nodes we will cycle between
@@ -170,11 +154,8 @@ workflow.add_node("tool_node_prompt", tool_node_prompt)
 workflow.add_node("ask_human", ask_human)
 workflow.add_node("internet_agent", search_internet)
 workflow.add_node("tool_node_internet", tool_node_internet)
-# Set the entrypoint as `agent`
-# This means that this node is the first one called
 workflow.add_edge(START, "agent")
 
-# We now add a conditional edge
 workflow.add_conditional_edges(
     # First, we define the start node. We use `agent`.
     # This means these are the edges taken after the `agent` node is called.
@@ -218,9 +199,20 @@ def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
         if isinstance(mss, dict):
             if mss.get("messages"):
                 if isinstance(mss.get("messages")[0], BaseMessage):
+                    if hasattr(mss.get("messages")[0], "tool_calls"):
+                        if mss.get("messages")[0].tool_calls:
+                            print(f"tool_calls: {mss.get('messages')[0].tool_calls=}")
+                            print(
+                                f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
+                            )
+                        else:
+                            print(
+                                f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
+                            )
+
                     mss.get("messages")[0].pretty_print()
-        else:
             pass
+
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
 
@@ -234,9 +226,22 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
     ):
         mss = next(iter(event.values()))
         print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
-        if mss.get("messages"):
-            if isinstance(mss.get("messages")[0], BaseMessage):
-                mss.get("messages")[0].pretty_print()
+        if isinstance(mss, dict):
+            if mss.get("messages"):
+                if isinstance(mss.get("messages")[0], BaseMessage):
+                    if hasattr(mss.get("messages")[0], "tool_calls"):
+                        if mss.get("messages")[0].tool_calls:
+                            print(f"tool_calls: {mss.get('messages')[0].tool_calls=}")
+                            print(
+                                f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
+                            )
+                        else:
+                            print(
+                                f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
+                            )
+
+                    mss.get("messages")[0].pretty_print()
+            pass
 
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
@@ -248,4 +253,5 @@ if __name__ == "__main__":
         "hola",
     )
     # %%
+
     resume_graph(app, "1980")

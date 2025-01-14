@@ -12,7 +12,7 @@ system_prompt: "---------------------------------COMIENZO/INICIO del system_prom
   \ 'última semana', o 'algún mes'), SIEMPRE debes usarlo directamente para responder.\n\
   *IMPORTANTE*: SOLO Si el usuario NO proporciona un periodo (por ejemplo, ayer, última\
   \ semana, o algún mes), debes preguntarle con AskHuman el periodo/rango de tiempo\
-  \ a reportar\nLa fecha de hoy es 13/01/2025.\noficinas seleccionadas: ['001 - Huerfanos\
+  \ a reportar\nLa fecha de hoy es 14/01/2025.\noficinas seleccionadas: ['001 - Huerfanos\
   \ 740 EDW', '356 - El Bosque'].\nLos datos disponibles no necesariamente están actualizados\
   \ a la fecha de hoy, por lo que debes verificar que registros se pueden analizar.\n\
   Considera este contexto de disponibilidad de datos para responder las preguntas:\

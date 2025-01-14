@@ -72,15 +72,10 @@ def make_prompt(sub_prompt: str):
     return f"{sub_prompt}"
 
 
-tools = [make_prompt]
-tool_node = ToolNode(tools)
+tool_node_prompt = ToolNode([make_prompt])
+tool_node_internet = ToolNode([search_tool])
 
 # Set up the model
-from langchain_anthropic import ChatAnthropic
-
-model = ChatAnthropic(model="claude-3-5-sonnet-latest")
-
-from pydantic import BaseModel
 
 
 # We are going "bind" all tools to the model
@@ -93,13 +88,11 @@ class AskHuman(BaseModel):
     question: str
 
 
-model = model.bind_tools(tools + [AskHuman])
-
 # Define nodes and conditional edges
 
 
 # Define the function that determines whether to continue or not
-def should_continue(state):
+def should_continue(state) -> Literal[END, "ask_human", "tool_node_prompt"]:
     messages = state["messages"]
     last_message = messages[-1]
     # If there is no function call, then we finish
@@ -112,7 +105,7 @@ def should_continue(state):
         return "ask_human"
     # Otherwise if there is, we continue
     else:
-        return "action"
+        return "tool_node_prompt"
 
 
 # Define the function that calls the model
@@ -123,46 +116,60 @@ def call_model(state):
         content=(
             "debes ver si el usuario ha proporcionado algun año"
             "si no ha proporcionado un año, debes preguntarle usando AskHuman"
-            "y luego debes hacer un prompt (tool make_prompt) que solicite una busqueda en internet de hechos relevantes sobre la fecha, este prompt será usado otro agente para buscar en internet"
+            "y luego debes hacer un prompt (tool make_prompt) que solicite una busqueda en internet de hechos científicos relevantes sobre la fecha, este prompt será usado otro agente para buscar en internet"
         )
     )
-
+    model = ChatAnthropic(model="claude-3-5-sonnet-latest")
+    model = model.bind_tools([make_prompt] + [AskHuman])
     response = model.invoke([system_promtp] + messages)
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
 
-def search_internet(state):
+def search_internet(state) -> Command[Literal["tool_node_internet", END]]:
     messages = state["messages"]
     # extraer el prompt hecho por el agente anterior
     prompt = messages[-1].content
     print(f"---------SUB-PROMPT: {prompt=}")
     model = ChatAnthropic(model="claude-3-5-sonnet-latest")
     model = model.bind_tools([search_tool])
-    response = model.invoke(prompt)
-    return {"messages": [response]}
+
+    system_promtp = SystemMessage(
+        content=(
+            "Puedes hacer una busqueda en internet, y con los resultados que obtengas, debes hacer un resumen de los resultados"
+        )
+    )
+
+    response = model.invoke([system_promtp] + [prompt])
+    print(f"---------RESPONSE search_internet: {response=}")
+
+    if len(response.tool_calls) > 0:
+        next_node = "tool_node_internet"
+    else:
+        next_node = END
+
+    return Command(goto=next_node, update={"messages": [response]})
 
 
 # We define a fake node to ask the human
 def ask_human(state):
     tool_call_id = state["messages"][-1].tool_calls[0]["id"]
-    location = interrupt("Please provide your location:")
+    location = interrupt("Por favor, proporciona información")
     tool_message = [{"tool_call_id": tool_call_id, "type": "tool", "content": location}]
     return {"messages": tool_message}
 
 
 # Build the graph
 
-from langgraph.graph import END, StateGraph
-
 # Define a new graph
 workflow = StateGraph(MessagesState)
 
 # Define the three nodes we will cycle between
 workflow.add_node("agent", call_model)
-workflow.add_node("action", tool_node)
+workflow.add_node("tool_node_prompt", tool_node_prompt)
 workflow.add_node("ask_human", ask_human)
-workflow.add_node("search_internet", search_internet)
+workflow.add_node("internet_agent", search_internet)
+workflow.add_node("tool_node_internet", tool_node_internet)
 # Set the entrypoint as `agent`
 # This means that this node is the first one called
 workflow.add_edge(START, "agent")
@@ -182,10 +189,10 @@ workflow.add_conditional_edges(
 
 # After we get back the human response, we go back to the agent
 workflow.add_edge("ask_human", "agent")
-workflow.add_edge("action", "search_internet")
-workflow.add_edge("search_internet", END)
+workflow.add_edge("tool_node_prompt", "internet_agent")
+workflow.add_edge("tool_node_internet", "internet_agent")
+workflow.add_edge("internet_agent", END)
 # Set up memory
-from langgraph.checkpoint.memory import MemorySaver
 
 memory = MemorySaver()
 
@@ -196,49 +203,49 @@ memory = MemorySaver()
 app = workflow.compile(checkpointer=memory)
 
 display(Image(app.get_graph().draw_mermaid_png()))
-# %%
 
 
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
     config = {"configurable": {"thread_id": "1"}}
-    print(f"Próximo paso del grafo: {graph.get_state(config).next}")
-    for chunk in graph.stream(
+    print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+    for event in graph.stream(
         {"messages": [HumanMessage(content=input_message)]},
         config,
         stream_mode="updates",
     ):
-        print(f"Chunk: {chunk=}")
-        if "agent" in chunk:
-            print(f"{chunk['agent']['messages'][0].content=}")
-            chunk["agent"]["messages"][0].pretty_print()
-        print(f"Próximo paso del grafo: {graph.get_state(config).next}")
+        mss = next(iter(event.values()))
+        print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
+        if isinstance(mss, dict):
+            if mss.get("messages"):
+                if isinstance(mss.get("messages")[0], BaseMessage):
+                    mss.get("messages")[0].pretty_print()
+        else:
+            pass
+    print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
+
+
+def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None:
+    config = {"configurable": {"thread_id": "1"}}
+    print(f"## INICIO: Próximo paso del grafo: {app.get_state(config).next}")
+    for event in graph.stream(
+        Command(resume=input_message),
+        config,
+        stream_mode="updates",
+    ):
+        mss = next(iter(event.values()))
+        print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
+        if mss.get("messages"):
+            if isinstance(mss.get("messages")[0], BaseMessage):
+                mss.get("messages")[0].pretty_print()
+
+    print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
 
 if __name__ == "__main__":
 
-    qs = [
-        "dame los detalles del mejor ejecutivo",
-        "septiembre",
-        "que datos hay disponibles?",
-        "dame el SLA de octubre",
-        "dame el ranking de ejecutivos de octubre",
-        "dame los detalles del peor ejecutivo de octubre",
-        "gracias",
-        "cual fue mi primera pregunta?",
-        "hola",
-        "dame los detalles del mejor ejecutivo",
-        "octubre",
-        "hola",
-    ]
-
     run_graph(
         app,
-        ("hola"),
+        "hola",
     )
     # %%
-    for event in app.stream(
-        Command(resume="1980"),
-        {"configurable": {"thread_id": "1"}},
-        stream_mode="updates",
-    ):
-        print(event)
+    resume_graph(app, "1980")

@@ -94,7 +94,7 @@ def should_continue(state) -> Literal[END, "ask_human", "tool_node_prompt"]:
 
 
 # Define the function that calls the model
-def call_model(state):
+def call_model(state) -> Command[Literal[END, "ask_human", "tool_node_prompt"]]:
     messages = state["messages"]
 
     system_promtp = SystemMessage(
@@ -108,7 +108,18 @@ def call_model(state):
     model = model.bind_tools([make_prompt] + [AskHuman])
     response = model.invoke([system_promtp] + messages)
     # We return a list, because this will get added to the existing list
-    return {"messages": [response]}
+
+    print(f"---------RESPONSE search_internet: {response=}")
+
+    if len(response.tool_calls) > 0:
+        if response.tool_calls[0]["name"] == "AskHuman":
+            next_node = "ask_human"
+        else:
+            next_node = "tool_node_prompt"
+    else:
+        next_node = END
+
+    return Command(goto=next_node, update={"messages": [response]})
 
 
 def search_internet(state) -> Command[Literal["tool_node_internet", END]]:
@@ -155,35 +166,16 @@ workflow.add_node("ask_human", ask_human)
 workflow.add_node("internet_agent", search_internet)
 workflow.add_node("tool_node_internet", tool_node_internet)
 workflow.add_edge(START, "agent")
-
-workflow.add_conditional_edges(
-    # First, we define the start node. We use `agent`.
-    # This means these are the edges taken after the `agent` node is called.
-    "agent",
-    # Next, we pass in the function that will determine which node is called next.
-    should_continue,
-)
-
-# We now add a normal edge from `tools` to `agent`.
-# This means that after `tools` is called, `agent` node is called next.
-# workflow.add_edge("action", "agent")
-
-# After we get back the human response, we go back to the agent
 workflow.add_edge("ask_human", "agent")
 workflow.add_edge("tool_node_prompt", "internet_agent")
 workflow.add_edge("tool_node_internet", "internet_agent")
-workflow.add_edge("internet_agent", END)
-# Set up memory
+
 
 memory = MemorySaver()
-
-# Finally, we compile it!
-# This compiles it into a LangChain Runnable,
-# meaning you can use it as you would any other runnable
-# We add a breakpoint BEFORE the `ask_human` node so it never executes
 app = workflow.compile(checkpointer=memory)
 
 display(Image(app.get_graph().draw_mermaid_png()))
+# %%
 
 
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:

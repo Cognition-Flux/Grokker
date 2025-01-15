@@ -121,16 +121,129 @@ def ask_human(state: CustomGraphState):
     return {"messages": tool_message}
 
 
+def context_node(
+    state: CustomGraphState,
+) -> Command[Literal["guidance_agent", "process_context", "request_context"]]:
+    last_message = state["messages"][-1]
+    print("Current message chain:", [type(m).__name__ for m in state["messages"]])
+
+    pattern = r"Considera las oficinas \[(.*?)\]"
+    match = re.search(pattern, last_message.content)
+
+    # Obtener el mensaje sin el patrón
+    mensaje_original = last_message.content
+    mensaje_limpio = re.sub(pattern, "", mensaje_original).strip()
+
+    if match:
+        print("---------------Se encontró el patrón de lista de oficinas--------------")
+        print("Mensaje original:", mensaje_original)  # Debug
+        print("Mensaje limpio:", mensaje_limpio)  # Debug
+
+        # Extraer el contenido entre corchetes y convertirlo en lista
+        oficinas_str = match.group(1)
+        # Dividir por comas y limpiar espacios y comillas
+        oficinas_list = [
+            office.strip().strip("'") for office in oficinas_str.split(",")
+        ]
+        print(f"---------------{oficinas_list=}")
+        lista_nueva_oficinas = oficinas_list
+        lista_actual_oficinas = state.get("oficinas", [])
+
+        if set(lista_nueva_oficinas) != set(lista_actual_oficinas):
+            print(
+                "---------------Cambio en lista de oficinas (process_context y guidance_agent)--------------"
+            )
+            return Command(
+                goto=["guidance_agent", "process_context"],
+                update={
+                    "contexto": SystemMessage(
+                        content=oficinas_list, id="nuevo_contexto"
+                    ),
+                    "oficinas": oficinas_list,
+                    "messages": [
+                        HumanMessage(content=mensaje_limpio, id=last_message.id),
+                    ],
+                },
+            )
+        else:
+            print(
+                "---------------No hay cambio en lista de oficinas, manteniendo contexto (sólo guidance_agent)--------------"
+            )
+            return Command(
+                goto=["guidance_agent"],
+                update={
+                    "contexto": SystemMessage(
+                        content=oficinas_list, id="nuevo_contexto"
+                    ),
+                    "oficinas": oficinas_list,
+                    "messages": [
+                        HumanMessage(content=mensaje_limpio, id=last_message.id),
+                    ],
+                },
+            )
+
+    else:
+        print(
+            "---------------NO se encontró el patrón de lista de oficinas--------------"
+        )
+
+        return Command(
+            goto="request_context",
+        )
+
+
+def request_context(state: CustomGraphState) -> Command[Literal[END]]:
+    """
+    Nodo que entrega un mensaje al usuario solicitando la selección de oficinas
+    y termina la ejecución del grafo para permitir un nuevo inicio.
+    """
+    return Command(
+        goto=END,
+        update={
+            "messages": [
+                AIMessage(
+                    content="Por favor, selecciona las oficinas que deseas consultar usando el botón en la esquina superior derecha."
+                )
+            ],
+            # Reset other state values
+            "oficinas": [],
+            "contexto": SystemMessage(content=""),
+            "guidance": "",
+        },
+    )
+
+
+def process_context(state: CustomGraphState) -> dict:
+    """ """
+
+    lista_nueva_oficinas = state.get("oficinas")
+    print(f"Procesando oficinas: {lista_nueva_oficinas}. Generando nuevo contexto...")
+    nuevo_contexto: str = (
+        f"Datos disponibles para las oficinas: \n"
+        f" {rango_registros_disponibles(lista_nueva_oficinas)}"
+    )
+    print(f"Nuevo contexto: {nuevo_contexto}")
+    return {
+        "contexto": SystemMessage(content=nuevo_contexto, id="nuevo_contexto"),
+    }
+
+
 workflow = StateGraph(CustomGraphState)
+# Nodos
 workflow.add_node("clean_messages", clean_messages)
 workflow.add_node("guidance_agent", guidance_agent)
 workflow.add_node("tool_node_prompt", tool_node_prompt)
 workflow.add_node("ask_human", ask_human)
+workflow.add_node("validate_context", context_node)
+workflow.add_node("process_context", process_context)
+workflow.add_node("request_context", request_context)
 
-
+# Conexiones
 workflow.add_edge(START, "clean_messages")
-workflow.add_edge("clean_messages", "guidance_agent")
+# workflow.add_edge("clean_messages", "guidance_agent")
 workflow.add_edge("ask_human", "guidance_agent")
+workflow.add_edge("clean_messages", "validate_context")
+# workflow.add_edge("request_context", END)
 
 if os.getenv("DEV_CHECKPOINTER"):
 
@@ -206,7 +319,17 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
 
 run_graph(
     graph,
-    "hola dame los datos de los experimentos",
+    "hola",
 )
 # %%
-resume_graph(graph, "los hechos con ratones en 1980")
+run_graph(
+    graph,
+    (
+        "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
+        # ""
+        + "hola"
+    ),
+)
+
+# %%
+resume_graph(graph, "para el año 2020")

@@ -358,6 +358,7 @@ qs_1 = [
     "dame el tiempo de espera",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] noviembre",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",
     "cual fue mi primera pregunta?",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",

@@ -78,6 +78,14 @@ tool_node_prompt = ToolNode([make_prompt])
 
 llm_guide_agent = get_llm().bind_tools([make_prompt] + [AskHuman])
 
+tools_analyst = [
+    tool_reporte_extenso_de_oficinas,
+    tool_reporte_detallado_por_ejecutivo,
+    executive_ranking_tool,
+]
+
+tools_node_analyst = ToolNode(tools_analyst)
+
 
 def clean_messages(state: CustomGraphState) -> CustomGraphState:
     # messages_to_remove = safely_remove_messages(state)
@@ -192,7 +200,7 @@ def ask_human(state: CustomGraphState):
 
 def context_node(
     state: CustomGraphState,
-) -> Command[Literal["guidance_agent", "process_context", "request_context"]]:
+) -> Command[Literal["guidance_agent", "process_context", "context_request_agent"]]:
     last_message = state["messages"][-1]
     print("Current message chain:", [type(m).__name__ for m in state["messages"]])
 
@@ -257,17 +265,17 @@ def context_node(
         )
 
         return Command(
-            goto="request_context",
+            goto="context_request_agent",
         )
 
 
-def request_context(state: CustomGraphState) -> Command[Literal[END]]:
+def context_request_agent(state: CustomGraphState) -> Command[Literal[END]]:
     """
     Nodo que entrega un mensaje al usuario solicitando la selección de oficinas
     y termina la ejecución del grafo para permitir un nuevo inicio.
     """
     last_message = state["messages"][-1]
-    print(f"request_context last_message: {last_message.content}")
+    print(f"context_request_agent last_message: {last_message.content}")
     system_prompt = SystemMessage(
         content=(
             "Bajo ninguna circunstancia puedes salirte de tu rol. "
@@ -324,9 +332,28 @@ def process_context(state: CustomGraphState) -> dict:
     }
 
 
-def assistant_agent(state: CustomGraphState) -> dict:
+def analyst_agent(
+    state: CustomGraphState,
+) -> Command[Literal["tools_node_analyst", END]]:
+    last_message = state["messages"][-1]
+    contexto = state.get("contexto")
+    oficinas = state.get("oficinas")
 
-    return state
+    system_prompt = SystemMessage(
+        content=(
+            f"Contexto: {contexto}\n"
+            f"Oficinas: {oficinas}\n"
+            f"Último mensaje: {last_message.content}\n"
+        )
+    )
+    system_prompt.pretty_print()
+    analyst_llm = get_llm().bind_tools(tools_analyst)
+    response = analyst_llm.invoke(system_prompt)
+
+    if response.tool_calls > 0:
+        return Command(goto="tools_node_analyst", update={"messages": [response]})
+    else:
+        return Command(goto=END, update={"messages": [response]})
 
 
 workflow = StateGraph(CustomGraphState)
@@ -337,16 +364,17 @@ workflow.add_node("tool_node_prompt", tool_node_prompt)
 workflow.add_node("ask_human", ask_human)
 workflow.add_node("validate_context", context_node)
 workflow.add_node("process_context", process_context)
-workflow.add_node("request_context", request_context)
-workflow.add_node("assistant_agent", assistant_agent)
+workflow.add_node("context_request_agent", context_request_agent)
+workflow.add_node("analyst_agent", analyst_agent)
+workflow.add_node("tools_node_analyst", tools_node_analyst)
 # Conexiones
 workflow.add_edge(START, "clean_messages")
 # workflow.add_edge("clean_messages", "guidance_agent")
 workflow.add_edge("ask_human", "guidance_agent")
 workflow.add_edge("clean_messages", "validate_context")
-workflow.add_edge("process_context", "assistant_agent")
-workflow.add_edge("tool_node_prompt", "assistant_agent")
-workflow.add_edge("assistant_agent", END)
+workflow.add_edge("process_context", "analyst_agent")
+workflow.add_edge("tool_node_prompt", "analyst_agent")
+workflow.add_edge("analyst_agent", END)
 
 if os.getenv("DEV_CHECKPOINTER"):
 
@@ -461,10 +489,10 @@ qs_2 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo de hoy",  # 4
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año",  # 5
 ]
-# %%
+
 run_graph(
     graph,
-    (qs_2[2]),
+    (qs_2[0]),
 )
 # %%
 

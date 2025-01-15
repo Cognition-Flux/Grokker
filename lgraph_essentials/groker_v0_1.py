@@ -363,6 +363,7 @@ qs_1 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",
+    "que datos tienes?",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",

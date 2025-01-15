@@ -62,7 +62,7 @@ class CustomGraphState(MessagesState):
 
 class AskHuman(BaseModel):
     """AskHuman
-    el agente debe solicitar directamente aclaraciones/información al usuario/humano
+    el agente debe solicitar directamente el periodo de tiempo al usuario/humano
     """
 
     question_for_human: str
@@ -70,7 +70,7 @@ class AskHuman(BaseModel):
 
 @tool
 def make_prompt(internal_prompt: str) -> str:
-    """Elabora un prompt que será pasado a otro agente"""
+    """entregar directamente un prompt corto, breve y conciso para ser usado por otro agente posteriormente"""
     return f"{internal_prompt}"
 
 
@@ -91,9 +91,43 @@ def guidance_agent(
 
     prompt_for_guidance = SystemMessage(
         content=(
-            "Debes ver si el usuario ha proporcionado algun año o periodo de tiempo. "
-            "si no ha proporcionado un año o periodo de tiempo, debes preguntarle usando AskHuman"
-            "Despues usa la tool make_prompt para crear un prompt que explique lo que el usuario está pidiendo basado en el historial de la conversación"
+            "Eres un agente que deber verificar si el usuario ha proporcionado algún periodo de tiempo (por ejemplo una día, una semana, un mes, un año, una fecha, etc). "
+            "Si no ha proporcionado un periodo de tiempo, debes solicitarlo al usuario con AskHuman."
+            "Si ya ha proporcionado un periodo de tiempo (por ejemplo una día, una semana, un mes, un año, una fecha, etc), "
+            "debes responder directamente (usado make_prompt) con un prompt que explique lo que el usuario está pidiendo basado en el historial de la conversación"
+            "Aquí algunos ejemplos como guía:"
+            "## Ejemplo 1: "
+            " - usuario: dame el SLA"
+            " - agente/AskHuman: ¿Para que el periodo de tiempo necesitas el SLA?"
+            " - usuario: quiero el SLA de septiembre"
+            " - agente/make_prompt: El usuario está pidiendo el SLA (o nivel de servicio) de septiembre para las oficinas, debes entregar unicamente el SLA de septiembre para cada oficina, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 2: "
+            " - usuario: dame el mejor y peor ejecutivo"
+            " - agente/AskHuman: ¿Para que periodo de tiempo necesitas el mejor y peor ejecutivo?"
+            " - usuario: para la semana semana pasada"
+            " - agente/make_prompt: El usuario está pidiendo el mejor y peor ejecutivo de la semana pasada para las oficinas, "
+            "primero debes hacer un ranking de ejecutivos de la semana pasada para cada oficina, luego extrar el mejor y peor ejecutivo de cada oficina. Recuerda revisar los datos disponibles."
+            "## Ejemplo 3: "
+            " - usuario: dame el ranking de ejecutivos de octubre"
+            " - agente/make_prompt: El usuario está pidiendo el ranking de ejecutivos de octubre para las oficinas, debes entregar unicamente el ranking de ejecutivos de octubre para cada oficina, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 4: "
+            " - usuario: dame las atenciones diarias del mes pasado"
+            " - agente/make_prompt: El usuario está pidiendo las atenciones diarias del mes pasado para las oficinas, debes entregar unicamente el total de atenciones diarias (días por día) del mes pasado para cada oficina, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 5: "
+            " - usuario: dame las atenciones por serie de ayer y el abandono"
+            " - agente/make_prompt: El usuario está pidiendo las atenciones por serie de ayer y el abandono (turnos perdidos) para las oficinas, debes entregar unicamente el total de atenciones por serie de ayer y el abandono para cada oficina, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 6: "
+            " - usuario: dame los peores ejecutivos de la peor oficina"
+            " - agente/AskHuman: ¿Para que periodo de tiempo necesitas los peores ejecutivos de la peor oficina?"
+            " - usuario: el mes pasado"
+            " - agente/make_prompt: El usuario está pidiendo los peores ejecutivos de la peor oficina del mes pasado, debes encontrar la peor oficina (que tiene el SLA o nivel de servicio más bajo) del mes pasado, luego obtener "
+            "el ranking de ejecutivos de esa oficina y extraer los peores ejecutivos de esa oficina, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 7: "
+            " - usuario: dame los detalles del peor ejecutivo"
+            " - agente/AskHuman: ¿Para que periodo de tiempo necesitas los detalles del peor ejecutivo?"
+            " - usuario: agosto"
+            " - agente/make_prompt: El usuario está pidiendo los detalles del peor ejecutivo de agosto, "
+            "##Importante:  Tienes que mirar el historial de la conversación para inferir cual es el periodo de tiempo que se está considerando en la conversación y entender lo que el usuario está pidiendo."
         )
     )
 
@@ -114,7 +148,7 @@ def guidance_agent(
 
 def ask_human(state: CustomGraphState):
     tool_call_id = state["messages"][-1].tool_calls[0]["id"]
-    intervencion_humana = interrupt("Por favor, proporciona información")
+    intervencion_humana = interrupt("Por favor, proporciona el periodo de tiempo")
     tool_message = [
         {"tool_call_id": tool_call_id, "type": "tool", "content": intervencion_humana}
     ]
@@ -319,7 +353,11 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
 
 run_graph(
     graph,
-    "hola",
+    (
+        "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
+        "hola"
+        "dame el tiempo de espera"
+    ),
 )
 # %%
 run_graph(
@@ -327,7 +365,7 @@ run_graph(
     (
         "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
         # ""
-        + "hola"
+        + "listo"
     ),
 )
 

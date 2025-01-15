@@ -403,53 +403,57 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
 
 qs_1 = [
     "hola",  # 0
-    "que haces?",  # 1
+    "que puedes hacer?",  # 1
     "puedes hacer un ranking de ejecutivos?",  # 2
     "que datos tienes?",  # 3
-    "dame el tiempo de espera",  # 4
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",  # 5
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Ya seleccioné las oficinas",  # 6
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",  # 7
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] que puedes hacer?",  # 8
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 9
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] puedes hacer un ranking de ejecutivos?",  # 10
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] noviembre",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",
-    "cual fue mi primera pregunta?",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",
-    "que datos tienes?",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame las atenciones por serie",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",
-    "hola",
-    "que haces?",
-    "gracias",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q haces?",
-    "que datos tienes?",
+    "ok, dame el tiempo de espera",  # 4
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ok, ya seleccione las oficinas",  # 5
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] semana pasada",  # 6
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 7
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] puedes hacer un ranking de ejecutivos?",  # 8
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] noviembre",  # 9
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el SLA",  # 10
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q registros tienes?",  # 11
+    "cual fue mi primera pregunta?",  # 12
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",  # 13
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",  # 14
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",  # 15
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",  # 16
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 17
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",  # 18
+    "que datos tienes?",  # 19
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",  # 20
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",  # 21
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame las atenciones por serie",  # 22
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",  # 23
+    "hola",  # 24
+    "que haces?",  # 25
+    "gracias",  # 26
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q haces?",  # 27
+    "que datos tienes?",  # 28
 ]
 
 qs_2 = [
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",  # 0
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono de septiembre",  # 1
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono de ayer",  # 2
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de la semana pasada",  # 3
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo de hoy",  # 4
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año",  # 5
 ]
 # %%
 run_graph(
     graph,
-    (qs_1[10]),
+    (qs_1[5]),
 )
 # %%
 
+resume_graph(
+    graph,
+    (qs_1[5]),
+)
+
+# %%
 run_graph(
     graph,
     ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "listo"),

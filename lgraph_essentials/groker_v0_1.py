@@ -127,6 +127,18 @@ def guidance_agent(
             " - agente/AskHuman: ¿Para que periodo de tiempo necesitas los detalles del peor ejecutivo?"
             " - usuario: agosto"
             " - agente/make_prompt: El usuario está pidiendo los detalles del peor ejecutivo de agosto, "
+            "## Ejemplo 8: "
+            " - usuario: cual son los datos/registros disponibles?"
+            " - agente/make_prompt: El usario está solicitando los datos/registros disponibles para las oficinas, debes entregar unicamente los datos/registros/periodos disponibles para cada oficina en tu contexto, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 9: "
+            " - usuario: Que datos hay?"
+            " - agente/make_prompt: El usario está solicitando los datos que hay disponibles para las oficinas, debes entregar unicamente los datos/registros/periodos de tiempo disponibles para cada oficina en tu contexto, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 10: "
+            " - usuario: que periodos de tiempo tienes?"
+            " - agente/make_prompt: El usario está solicitando los periodos de tiempo disponibles para las oficinas, debes entregar unicamente los datos/registros/periodos de tiempo disponibles para cada oficina en tu contexto, nada más. Recuerda revisar los datos disponibles."
+            "## Ejemplo 11: "
+            " - usuario: que registros tienes?"
+            " - agente/make_prompt: El usario está solicitando los registros disponibles para las oficinas, debes entregar unicamente los datos/registros/periodos de tiempo disponibles para cada oficina en tu contexto, nada más. Recuerda revisar los datos disponibles."
             "##Importante:  Tienes que mirar el historial de la conversación para inferir cual es el periodo de tiempo que se está considerando en la conversación y entender lo que el usuario está pidiendo."
             "---------Casos Particulares: el usario NO solicita nada en específico-respuestas directas, NO llamar tools, NO hacer tool calling---------"
             "En estos casos sólo debes responder directamente"
@@ -444,13 +456,13 @@ qs_2 = [
 # %%
 run_graph(
     graph,
-    (qs_1[5]),
+    (qs_1[28]),
 )
 # %%
 
 resume_graph(
     graph,
-    (qs_1[5]),
+    ("de ayer"),
 )
 
 # %%

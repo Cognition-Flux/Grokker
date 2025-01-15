@@ -368,8 +368,8 @@ qs_1 = [
     "que datos tienes?",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] hola",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame las atenciones por serie",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",
     "hola",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q haces?",
     "que datos tienes?",
@@ -385,7 +385,7 @@ qs_2 = [
 ]
 run_graph(
     graph,
-    ("hola" "dame el tiempo de espera"),
+    (qs_1[0]),
 )
 # %%
 

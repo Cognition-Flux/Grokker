@@ -42,9 +42,9 @@ from typing_extensions import TypedDict
 load_dotenv(override=True)
 
 
-def get_llm() -> AzureChatOpenAI:
+def get_llm(azure_deployment: str = "gpt-4o") -> AzureChatOpenAI:
     return AzureChatOpenAI(
-        azure_deployment="gpt-4o",
+        azure_deployment=azure_deployment,
         api_version=os.environ["AZURE_API_VERSION"],
         temperature=0,
         max_tokens=None,

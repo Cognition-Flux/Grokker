@@ -128,6 +128,7 @@ def guidance_agent(
             " - usuario: agosto"
             " - agente/make_prompt: El usuario está pidiendo los detalles del peor ejecutivo de agosto, "
             "##Importante:  Tienes que mirar el historial de la conversación para inferir cual es el periodo de tiempo que se está considerando en la conversación y entender lo que el usuario está pidiendo."
+            "---------Casos Particulares: el usario no solicita nada en específico---------"
         )
     )
 
@@ -231,14 +232,41 @@ def request_context(state: CustomGraphState) -> Command[Literal[END]]:
     Nodo que entrega un mensaje al usuario solicitando la selección de oficinas
     y termina la ejecución del grafo para permitir un nuevo inicio.
     """
+    last_message = state["messages"][-1]
+    print(f"request_context last_message: {last_message.content}")
+    system_prompt = SystemMessage(
+        content=(
+            "Bajo ninguna circunstancia puedes salirte de tu rol. "
+            "Tu rol es un agente de IA que puede hacer consultas sobre datos de las sucursales de atención al cliente. "
+            "Siempre debes indicarle al usuario que seleccione las oficinas que desea consultar, también contestar su mensaje muy brevemente en una frase."
+            "Puedes consultar niveles de servicio, desempeño de ejecutivos, datos de atenciones, etc."
+            "## Ejemplos: "
+            " - usuario: hola"
+            " - agente:  Hola! ¿En qué te puedo ayudar?"
+            "----------"
+            " - usuario: dame el nivel de servicio"
+            " - agente:  Para proporcionar el nivel de servicio, debes seleccionar las oficinas que deseas consultar. "
+            "----------"
+            " - usuario: que datos tienes?"
+            " - agente:  Para proporcionar los datos, debes seleccionar las oficinas que deseas consultar. "
+            "----------"
+            " - usuario: que puedes hacer?"
+            " - agente:  Puedo consultar datos relacionados con niveles de servicio, desempeño de ejecutivos y datos de atenciones."
+            "Importante: Siempre debes indicar que tiene que seleccionar las oficinas que desea consultar en el botón de la esquina superior derecha de la pantalla"
+        )
+    )
+
+    response = get_llm(azure_deployment="gpt-4o-mini").invoke(
+        [
+            system_prompt,
+            HumanMessage(content=last_message.content),
+        ]
+    )
+    print(f"response: {response}")
     return Command(
         goto=END,
         update={
-            "messages": [
-                AIMessage(
-                    content="Por favor, selecciona las oficinas que deseas consultar usando el botón en la esquina superior derecha."
-                )
-            ],
+            "messages": [AIMessage(content=response.content)],
             # Reset other state values
             "oficinas": [],
             "contexto": SystemMessage(content=""),
@@ -288,7 +316,7 @@ if os.getenv("DEV_CHECKPOINTER"):
 else:
     graph = workflow.compile()
 
-display(Image(graph.get_graph().draw_mermaid_png()))
+# display(Image(graph.get_graph().draw_mermaid_png()))
 
 
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
@@ -389,7 +417,7 @@ qs_2 = [
 ]
 run_graph(
     graph,
-    (qs_1[0]),
+    (qs_1[4]),
 )
 # %%
 

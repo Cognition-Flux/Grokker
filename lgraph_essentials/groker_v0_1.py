@@ -324,6 +324,11 @@ def process_context(state: CustomGraphState) -> dict:
     }
 
 
+def assistant_agent(state: CustomGraphState) -> dict:
+
+    return state
+
+
 workflow = StateGraph(CustomGraphState)
 # Nodos
 workflow.add_node("clean_messages", clean_messages)
@@ -333,13 +338,15 @@ workflow.add_node("ask_human", ask_human)
 workflow.add_node("validate_context", context_node)
 workflow.add_node("process_context", process_context)
 workflow.add_node("request_context", request_context)
-
+workflow.add_node("assistant_agent", assistant_agent)
 # Conexiones
 workflow.add_edge(START, "clean_messages")
 # workflow.add_edge("clean_messages", "guidance_agent")
 workflow.add_edge("ask_human", "guidance_agent")
 workflow.add_edge("clean_messages", "validate_context")
-# workflow.add_edge("request_context", END)
+workflow.add_edge("process_context", "assistant_agent")
+workflow.add_edge("tool_node_prompt", "assistant_agent")
+workflow.add_edge("assistant_agent", END)
 
 if os.getenv("DEV_CHECKPOINTER"):
 
@@ -350,7 +357,8 @@ if os.getenv("DEV_CHECKPOINTER"):
 else:
     graph = workflow.compile()
 
-# display(Image(graph.get_graph().draw_mermaid_png()))
+display(Image(graph.get_graph().draw_mermaid_png()))
+# %%
 
 
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:

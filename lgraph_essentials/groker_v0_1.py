@@ -369,6 +369,7 @@ qs_1 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
     "gracias",
     "hola",
+    "que datos tienes?",
 ]
 
 qs_2 = [

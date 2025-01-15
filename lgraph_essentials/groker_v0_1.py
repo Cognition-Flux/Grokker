@@ -351,23 +351,54 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
 
+qs_1 = [
+    "hola",
+    "que haces?",
+    "dame el tiempo de espera",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",
+    "noviembre",
+    "gracias",
+    "cual fue mi primera pregunta?",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
+    "gracias",
+    "hola",
+]
+
+qs_2 = [
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
+    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
+]
 run_graph(
     graph,
-    (
-        "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
-        "hola"
-        "dame el tiempo de espera"
-    ),
+    ("hola" "dame el tiempo de espera"),
 )
 # %%
+
 run_graph(
+    graph,
+    ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "listo"),
+)
+# %%
+resume_graph(
     graph,
     (
         "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
         # ""
-        + "listo"
+        + "noviembre"
     ),
 )
 
 # %%
-resume_graph(graph, "para el año 2020")
+run_graph(
+    graph,
+    ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "gracias"),
+)

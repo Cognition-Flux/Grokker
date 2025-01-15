@@ -354,6 +354,7 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
 qs_1 = [
     "hola",
     "que haces?",
+    "puedes hacer un ranking de ejecutivos?",
     "que datos tienes?",
     "dame el tiempo de espera",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",
@@ -372,6 +373,8 @@ qs_1 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame las atenciones por serie",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",
     "hola",
+    "que haces?",
+    "gracias",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q haces?",
     "que datos tienes?",
 ]

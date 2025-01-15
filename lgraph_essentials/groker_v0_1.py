@@ -87,7 +87,7 @@ def clean_messages(state: CustomGraphState) -> CustomGraphState:
 
 def guidance_agent(
     state: CustomGraphState,
-) -> Command[Literal["ask_human", "tool_node_prompt"]]:
+) -> Command[Literal["ask_human", "tool_node_prompt", END]]:
 
     prompt_for_guidance = SystemMessage(
         content=(
@@ -128,7 +128,29 @@ def guidance_agent(
             " - usuario: agosto"
             " - agente/make_prompt: El usuario está pidiendo los detalles del peor ejecutivo de agosto, "
             "##Importante:  Tienes que mirar el historial de la conversación para inferir cual es el periodo de tiempo que se está considerando en la conversación y entender lo que el usuario está pidiendo."
-            "---------Casos Particulares: el usario no solicita nada en específico---------"
+            "---------Casos Particulares: el usario NO solicita nada en específico-respuestas directas, NO llamar tools, NO hacer tool calling---------"
+            "En estos casos sólo debes responder directamente"
+            "## Ejemplo 1: "
+            " - usuario: hola"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): Hola! ¿En qué te puedo ayudar?"
+            "## Ejemplo 2: "
+            " - usuario: que puedes hacer?"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): Puedo consultar datos relacionados con niveles de servicio, desempeño de ejecutivos y datos de atenciones."
+            "## Ejemplo 3: "
+            " - usuario: gracias"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): ¡De nada! Si tienes alguna otra duda, no dudes en preguntar."
+            "## Ejemplo 4: "
+            " - usuario: listo ya seleccione las oficinas"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): ¿Que necesitas consultar?"
+            "## Ejemplo 5: "
+            " - usuario: okey, ya seleccioné"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): ¿Que necesitas consultar?"
+            "## Ejemplo 6: "
+            " - usuario: ya listo"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): ¿Que necesitas consultar?"
+            "## Ejemplo 7: "
+            " - usuario: seleccionadas"
+            " - agente (respuesta directa, NO llamar tools, NO hacer tool calling): ¿Que necesitas consultar?"
         )
     )
 
@@ -141,8 +163,8 @@ def guidance_agent(
             next_node = "ask_human"
         else:
             next_node = "tool_node_prompt"
-    # else:
-    #     next_node = END
+    else:
+        next_node = END
 
     return Command(goto=next_node, update={"messages": [response]})
 
@@ -380,11 +402,17 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
 
 
 qs_1 = [
-    "hola",
-    "que haces?",
-    "puedes hacer un ranking de ejecutivos?",
-    "que datos tienes?",
-    "dame el tiempo de espera",
+    "hola",  # 0
+    "que haces?",  # 1
+    "puedes hacer un ranking de ejecutivos?",  # 2
+    "que datos tienes?",  # 3
+    "dame el tiempo de espera",  # 4
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",  # 5
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Ya seleccioné las oficinas",  # 6
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",  # 7
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] que puedes hacer?",  # 8
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 9
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] puedes hacer un ranking de ejecutivos?",  # 10
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] noviembre",
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",
@@ -415,9 +443,10 @@ qs_2 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie",
 ]
+# %%
 run_graph(
     graph,
-    (qs_1[4]),
+    (qs_1[10]),
 )
 # %%
 

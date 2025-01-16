@@ -195,7 +195,7 @@ def ask_human(state: CustomGraphState):
     tool_message = [
         {"tool_call_id": tool_call_id, "type": "tool", "content": intervencion_humana}
     ]
-    return {"messages": tool_message}
+    return {"messages": tool_message} ########## debería ser de la clase ToolMessage
 
 
 def context_node(
@@ -332,28 +332,57 @@ def process_context(state: CustomGraphState) -> dict:
     }
 
 
+analyst_llm = get_llm().bind_tools(tools_analyst)
+
+def update_guidance_prompt(state: CustomGraphState)->Command[Literal["analyst_agent"]]:
+    last_message = state["messages"][-1]
+    contexto = state.get("contexto")
+    oficinas = state.get("oficinas")
+    if contexto and oficinas:
+        if isinstance(last_message, ToolMessage) and last_message.content != "":
+            return Command(
+                goto="analyst_agent",
+                update={"guidance": last_message.content, "messages": [last_message]})
+
 def analyst_agent(
     state: CustomGraphState,
 ) -> Command[Literal["tools_node_analyst", END]]:
     last_message = state["messages"][-1]
     contexto = state.get("contexto")
     oficinas = state.get("oficinas")
-
+    guidance = state.get("guidance")
+    print(f"""
+        ##------------------------------------analyst_agent------------------------------#
+        # last_message: {last_message.content}
+        # guidance: {guidance}
+        # contexto: {contexto.content}
+        # oficinas: {oficinas}""")
     system_prompt = SystemMessage(
-        content=(
-            f"Contexto: {contexto}\n"
-            f"Oficinas: {oficinas}\n"
-            f"Último mensaje: {last_message.content}\n"
+            content=(
+                "Era un agente que puede llamar/call herramientas/tools para responder preguntas del usuario. "
+                f"Estas son las oficinas que seleccionó el usuario: {oficinas}\n"
+                "Si te piden el SLA (nivel de servicio), debes llamar la tool que te permita obtener el SLA para las oficinas seleccionadas. "
+                "A veces los datos disponibles pueden cambiar, estos son los disponibles para analizar"
+                f"Este es tu contexto de registros/datos disponibles: {contexto.content}\n"
+                "llama a la tool una unica vez"
+            )
         )
-    )
     system_prompt.pretty_print()
-    analyst_llm = get_llm().bind_tools(tools_analyst)
-    response = analyst_llm.invoke(system_prompt)
-
-    if response.tool_calls > 0:
-        return Command(goto="tools_node_analyst", update={"messages": [response]})
+    human_input = HumanMessage(content=last_message.content)
+    human_input.pretty_print()
+    response = analyst_llm.invoke([system_prompt] + state["messages"])
+    print(f"## analyst_agent response: {response}")
+    print(f"## tool_calls {len(response.tool_calls) = }")
+    if len(response.tool_calls) > 0:
+        
+        next_node = "tools_node_analyst"
     else:
-        return Command(goto=END, update={"messages": [response]})
+        response.pretty_print()
+        next_node = END
+        
+    return Command(goto=next_node, update={"messages": [response]})
+        
+    #return state
 
 
 workflow = StateGraph(CustomGraphState)
@@ -367,14 +396,16 @@ workflow.add_node("process_context", process_context)
 workflow.add_node("context_request_agent", context_request_agent)
 workflow.add_node("analyst_agent", analyst_agent)
 workflow.add_node("tools_node_analyst", tools_node_analyst)
+workflow.add_node("update_guidance_prompt", update_guidance_prompt)
 # Conexiones
 workflow.add_edge(START, "clean_messages")
 # workflow.add_edge("clean_messages", "guidance_agent")
 workflow.add_edge("ask_human", "guidance_agent")
 workflow.add_edge("clean_messages", "validate_context")
-workflow.add_edge("process_context", "analyst_agent")
-workflow.add_edge("tool_node_prompt", "analyst_agent")
-workflow.add_edge("analyst_agent", END)
+workflow.add_edge("process_context", "update_guidance_prompt")
+workflow.add_edge("tool_node_prompt", "update_guidance_prompt")
+workflow.add_edge("tools_node_analyst", "analyst_agent")
+# workflow.add_edge("analyst_agent", END)
 
 if os.getenv("DEV_CHECKPOINTER"):
 
@@ -385,9 +416,7 @@ if os.getenv("DEV_CHECKPOINTER"):
 else:
     graph = workflow.compile()
 
-display(Image(graph.get_graph().draw_mermaid_png()))
-# %%
-
+# display(Image(graph.get_graph().draw_mermaid_png()))
 
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
     config = {"configurable": {"thread_id": "1"}}
@@ -482,7 +511,7 @@ qs_1 = [
 ]
 
 qs_2 = [
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",  # 0
+    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA de octubre",  # 0
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono de septiembre",  # 1
     "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono de ayer",  # 2
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de la semana pasada",  # 3
@@ -490,6 +519,13 @@ qs_2 = [
     "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año",  # 5
 ]
 
+config = {"configurable": {"thread_id": "1"}}
+print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+for event in graph.stream({"messages": [HumanMessage(content=qs_2[0])]},
+        config,
+        stream_mode="updates",):
+    print(f"event: {event}")
+#%%
 run_graph(
     graph,
     (qs_2[0]),

@@ -364,12 +364,9 @@ def analyst_agent(
                 "Si te piden el SLA (nivel de servicio), debes llamar la tool que te permita obtener el SLA para las oficinas seleccionadas. "
                 "A veces los datos disponibles pueden cambiar, estos son los disponibles para analizar"
                 f"Este es tu contexto de registros/datos disponibles: {contexto.content}\n"
-                "llama a la tool una unica vez"
             )
         )
     system_prompt.pretty_print()
-    human_input = HumanMessage(content=last_message.content)
-    human_input.pretty_print()
     response = analyst_llm.invoke([system_prompt] + state["messages"])
     print(f"## analyst_agent response: {response}")
     print(f"## tool_calls {len(response.tool_calls) = }")

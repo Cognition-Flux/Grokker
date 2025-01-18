@@ -51,6 +51,13 @@ from ttp_agentic.tools.reporte_general_de_oficinas import (
 )
 
 load_dotenv(override=True)
+# Cargar el prompt desde el archivo YAML
+prompts_path = Path("system_prompts/agents_prompts.yaml")
+with open(prompts_path, "r", encoding="utf-8") as f:
+    prompts = yaml.safe_load(f)
+
+with open("system_prompts/tests_user_prompts.yaml", "r") as file:
+    user_prompts = yaml.safe_load(file)
 
 
 class CustomGraphState(MessagesState):
@@ -60,9 +67,17 @@ class CustomGraphState(MessagesState):
     messages: Annotated[List[BaseMessage], add_messages]
 
 
-class AskHuman(BaseModel):
-    """AskHuman
-    el agente debe solicitar directamente el periodo de tiempo al usuario/humano
+class GuidanceAgentAskHuman(BaseModel):
+    """GuidanceAgentAskHuman
+    solicitar directamente el periodo de tiempo al usuario/humano
+    """
+
+    question_for_human: str
+
+
+class AnalystAgentAskHuman(BaseModel):
+    """AnalystAgentAskHuman
+    solicitar directamente aclaraciones/guía al usuario/humano
     """
 
     question_for_human: str
@@ -70,13 +85,13 @@ class AskHuman(BaseModel):
 
 @tool
 def make_prompt(internal_prompt: str) -> str:
-    """entregar directamente un prompt corto, breve y conciso para ser usado por otro agente posteriormente"""
+    """entregar directamente un prompt breve y conciso para ser usado por otro agente posteriormente"""
     return f"{internal_prompt}"
 
 
 tool_node_prompt = ToolNode([make_prompt])
 
-llm_guide_agent = get_llm().bind_tools([make_prompt] + [AskHuman])
+llm_guide_agent = get_llm().bind_tools([make_prompt] + [GuidanceAgentAskHuman])
 
 tools_analyst = [
     tool_reporte_extenso_de_oficinas,
@@ -85,6 +100,7 @@ tools_analyst = [
 ]
 analyst_llm = get_llm().bind_tools(tools_analyst)
 tools_node_analyst = ToolNode(tools_analyst)
+context_request_llm = get_llm(azure_deployment="gpt-4o-mini")
 
 
 def clean_messages(state: CustomGraphState) -> CustomGraphState:
@@ -95,22 +111,23 @@ def clean_messages(state: CustomGraphState) -> CustomGraphState:
 
 def guidance_agent(
     state: CustomGraphState,
-) -> Command[Literal["ask_human", "tool_node_prompt", END]]:
-
-    # Cargar el prompt desde el archivo YAML
-    prompts_path = Path("system_prompts/agent_prompts.yaml")
-    with open(prompts_path, "r", encoding="utf-8") as f:
-        prompts = yaml.safe_load(f)
-
+) -> Command[Literal["guidance_agent_ask_human", "tool_node_prompt", END]]:
+    print("##################### --- guidance_agent --- #####################")
     prompt_for_guidance = SystemMessage(content=prompts["guidance_agent"]["prompt"])
 
-    mensajes = state["messages"] + [prompt_for_guidance]
+    prompt_for_guidance.pretty_print()
+    state["messages"][-1].pretty_print()
 
-    response = llm_guide_agent.invoke(mensajes)
-
+    response = llm_guide_agent.invoke([prompt_for_guidance] + state["messages"])
+    response.pretty_print()
+    print(
+        f"""##{len(response.tool_calls)=}
+        response.tool_calls: {response.tool_calls}
+        """
+    )
     if len(response.tool_calls) > 0:
-        if response.tool_calls[0]["name"] == "AskHuman":
-            next_node = "ask_human"
+        if response.tool_calls[0]["name"] == "GuidanceAgentAskHuman":
+            next_node = "guidance_agent_ask_human"
         else:
             next_node = "tool_node_prompt"
     else:
@@ -119,21 +136,33 @@ def guidance_agent(
     return Command(goto=next_node, update={"messages": [response]})
 
 
-def ask_human(state: CustomGraphState):
+def guidance_agent_ask_human(state: CustomGraphState) -> dict:
     tool_call_id = state["messages"][-1].tool_calls[0]["id"]
     intervencion_humana = interrupt("Por favor, proporciona el periodo de tiempo")
-    tool_message = [
-        {"tool_call_id": tool_call_id, "type": "tool", "content": intervencion_humana}
-    ]
-    return {"messages": tool_message}  ########## debería ser de la clase ToolMessage
+    tool_message = ToolMessage(
+        content=intervencion_humana,
+        tool_call_id=tool_call_id,
+        type="tool",
+    )
+    return {"messages": [tool_message]}
+
+
+def Analyst_Agent_Ask_Human(state: CustomGraphState) -> dict:
+    tool_call_id = state["messages"][-1].tool_calls[0]["id"]
+    intervencion_humana = interrupt("Por favor, proporciona aclaraciones o guía")
+    tool_message = ToolMessage(
+        content=intervencion_humana,
+        tool_call_id=tool_call_id,
+        type="tool",
+    )
+    return {"messages": [tool_message]}
 
 
 def context_node(
     state: CustomGraphState,
 ) -> Command[Literal["guidance_agent", "process_context", "context_request_agent"]]:
-    last_message = state["messages"][-1]
-    print("Current message chain:", [type(m).__name__ for m in state["messages"]])
 
+    last_message = state["messages"][-1]
     pattern = r"Considera las oficinas \[(.*?)\]"
     match = re.search(pattern, last_message.content)
 
@@ -143,8 +172,8 @@ def context_node(
 
     if match:
         print("---------------Se encontró el patrón de lista de oficinas--------------")
-        print("Mensaje original:", mensaje_original)  # Debug
-        print("Mensaje limpio:", mensaje_limpio)  # Debug
+        print("Mensaje original:", mensaje_original)  #
+        print("Mensaje limpio:", mensaje_limpio)  #
 
         # Extraer el contenido entre corchetes y convertirlo en lista
         oficinas_str = match.group(1)
@@ -158,33 +187,34 @@ def context_node(
 
         if set(lista_nueva_oficinas) != set(lista_actual_oficinas):
             print(
-                "---------------Cambio en lista de oficinas (process_context y guidance_agent)--------------"
+                "---------------CAMBIO en lista de oficinas, hay que actualizar el contexto--------------"
             )
             return Command(
                 goto=["guidance_agent", "process_context"],
                 update={
-                    "contexto": SystemMessage(
-                        content=oficinas_list, id="nuevo_contexto"
-                    ),
                     "oficinas": oficinas_list,
                     "messages": [
-                        HumanMessage(content=mensaje_limpio, id=last_message.id),
+                        HumanMessage(
+                            # Reescribir el último mensaje sin el patrón
+                            content=mensaje_limpio,
+                            id=last_message.id,
+                        ),
                     ],
                 },
             )
         else:
             print(
-                "---------------No hay cambio en lista de oficinas, manteniendo contexto (sólo guidance_agent)--------------"
+                "---------------No hay cambio en lista de oficinas, se mantiene el contexto (sólo guidance_agent)--------------"
             )
             return Command(
                 goto=["guidance_agent"],
                 update={
-                    "contexto": SystemMessage(
-                        content=oficinas_list, id="nuevo_contexto"
-                    ),
-                    "oficinas": oficinas_list,
                     "messages": [
-                        HumanMessage(content=mensaje_limpio, id=last_message.id),
+                        HumanMessage(
+                            # Reescribir el último mensaje sin el patrón
+                            content=mensaje_limpio,
+                            id=last_message.id,
+                        ),
                     ],
                 },
             )
@@ -193,34 +223,29 @@ def context_node(
         print(
             "---------------NO se encontró el patrón de lista de oficinas--------------"
         )
-
         return Command(
+            # Ir al agente que solicita contexto
             goto="context_request_agent",
         )
 
 
 def context_request_agent(state: CustomGraphState) -> Command[Literal[END]]:
-    last_message = state["messages"][-1]
-    print(f"context_request_agent last_message: {last_message.content}")
 
-    # Cargar el prompt desde el archivo YAML
-    prompts_path = Path("system_prompts/agent_prompts.yaml")
-    with open(prompts_path, "r", encoding="utf-8") as f:
-        prompts = yaml.safe_load(f)
+    print("##################### --- context_request_agent --- #####################")
+
+    last_message = state["messages"][-1]
 
     system_prompt = SystemMessage(content=prompts["context_request_agent"]["prompt"])
-
-    response = get_llm(azure_deployment="gpt-4o-mini").invoke(
-        [
-            system_prompt,
-            HumanMessage(content=last_message.content),
-        ]
-    )
-    print(f"response: {response}")
+    system_prompt.pretty_print()
+    input_message = HumanMessage(content=last_message.content)
+    input_message.pretty_print()
+    print("## ------------------------------ ##")
+    response = context_request_llm.invoke([system_prompt] + [input_message])
+    response.pretty_print()
     return Command(
         goto=END,
         update={
-            "messages": [AIMessage(content=response.content)],
+            "messages": [response],
             # Reset other state values
             "oficinas": [],
             "contexto": SystemMessage(content=""),
@@ -230,7 +255,6 @@ def context_request_agent(state: CustomGraphState) -> Command[Literal[END]]:
 
 
 def process_context(state: CustomGraphState) -> dict:
-    """ """
 
     lista_nueva_oficinas = state.get("oficinas")
     print(f"Procesando oficinas: {lista_nueva_oficinas}. Generando nuevo contexto...")
@@ -244,13 +268,17 @@ def process_context(state: CustomGraphState) -> dict:
     }
 
 
-def update_guidance_prompt(
+def validate_state(
     state: CustomGraphState,
 ) -> Command[Literal["analyst_agent"]]:
+
     last_message = state["messages"][-1]
     contexto = state.get("contexto")
     oficinas = state.get("oficinas")
+    # check que el contexto y las oficinas no estén vacíos
     if contexto and oficinas:
+        # solo avanzar si el mensaje es un ToolMessage y no está vacío
+        # esto indica que ya se generó el prompt para el analista desde make_prompt
         if isinstance(last_message, ToolMessage) and last_message.content != "":
             return Command(
                 goto="analyst_agent",
@@ -267,19 +295,13 @@ def analyst_agent(
     guidance = state.get("guidance")
     print(
         f"""
-        ##------------------------------------analyst_agent------------------------------#
+        ##################### --- analyst_agent --- #####################
         # last_message: {last_message.content}
         # guidance: {guidance}
         # contexto: {contexto.content}
         # oficinas: {oficinas}"""
     )
 
-    # Cargar el prompt desde el archivo YAML
-    prompts_path = Path("system_prompts/agent_prompts.yaml")
-    with open(prompts_path, "r", encoding="utf-8") as f:
-        prompts = yaml.safe_load(f)
-
-    # Formatear el prompt con las variables
     formatted_prompt = prompts["analyst_agent"]["prompt"].format(
         oficinas=oficinas, contexto=contexto.content
     )
@@ -289,7 +311,7 @@ def analyst_agent(
     system_prompt.pretty_print()
     response = analyst_llm.invoke([system_prompt] + state["messages"])
     print(f"## analyst_agent response: {response}")
-    print(f"## tool_calls {len(response.tool_calls) = }")
+    print(f"## tool_calls {len(response.tool_calls)=}")
     if len(response.tool_calls) > 0:
 
         next_node = "tools_node_analyst"
@@ -299,34 +321,30 @@ def analyst_agent(
 
     return Command(goto=next_node, update={"messages": [response]})
 
-    # return state
-
 
 workflow = StateGraph(CustomGraphState)
 # Nodos
 workflow.add_node("clean_messages", clean_messages)
 workflow.add_node("guidance_agent", guidance_agent)
 workflow.add_node("tool_node_prompt", tool_node_prompt)
-workflow.add_node("ask_human", ask_human)
+workflow.add_node("guidance_agent_ask_human", guidance_agent_ask_human)
 workflow.add_node("validate_context", context_node)
 workflow.add_node("process_context", process_context)
 workflow.add_node("context_request_agent", context_request_agent)
 workflow.add_node("analyst_agent", analyst_agent)
 workflow.add_node("tools_node_analyst", tools_node_analyst)
-workflow.add_node("update_guidance_prompt", update_guidance_prompt)
+workflow.add_node("validate_state", validate_state)
 # Conexiones
 workflow.add_edge(START, "clean_messages")
 # workflow.add_edge("clean_messages", "guidance_agent")
-workflow.add_edge("ask_human", "guidance_agent")
+workflow.add_edge("guidance_agent_ask_human", "guidance_agent")
 workflow.add_edge("clean_messages", "validate_context")
-workflow.add_edge("process_context", "update_guidance_prompt")
-workflow.add_edge("tool_node_prompt", "update_guidance_prompt")
+workflow.add_edge("process_context", "validate_state")
+workflow.add_edge("tool_node_prompt", "validate_state")
 workflow.add_edge("tools_node_analyst", "analyst_agent")
 # workflow.add_edge("analyst_agent", END)
 
 if os.getenv("DEV_CHECKPOINTER"):
-
-    from langgraph.checkpoint.memory import MemorySaver
 
     memory = MemorySaver()
     graph = workflow.compile(checkpointer=memory)
@@ -334,17 +352,26 @@ else:
     graph = workflow.compile()
 
 # display(Image(graph.get_graph().draw_mermaid_png()))
-with open("system_prompts/tests_user_prompts.yaml", "r") as file:
-    user_prompts = yaml.safe_load(file)
 
+# %%
 config = {"configurable": {"thread_id": "1"}}
 print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
 for event in graph.stream(
-    {"messages": [HumanMessage(content=user_prompts["noob"][0])]},
+    {"messages": [HumanMessage(content=user_prompts["noob"][-2])]},
     config,
     stream_mode="updates",
 ):
     print(f"event: {event}")
+print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
+# %%
+print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+for event in graph.stream(
+    Command(resume="septiembre"),
+    config,
+    stream_mode="updates",
+):
+    print(f"event: {event}")
+print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
 
 # %%

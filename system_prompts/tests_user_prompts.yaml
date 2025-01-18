@@ -13,6 +13,9 @@ noob:
   - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para el mes pasado"  # 8
   - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para otras oficinas"  # 8
   - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] ahora necesito lo mismo pero para el mes pasado"  # 10
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] SLA, abandono y ejecutivos"  # 10
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] septiembre"  # 11
+
 
 caotic:
   - ""

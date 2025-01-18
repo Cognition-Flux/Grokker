@@ -334,8 +334,20 @@ else:
     graph = workflow.compile()
 
 # display(Image(graph.get_graph().draw_mermaid_png()))
+with open("system_prompts/tests_user_prompts.yaml", "r") as file:
+    user_prompts = yaml.safe_load(file)
+
+config = {"configurable": {"thread_id": "1"}}
+print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+for event in graph.stream(
+    {"messages": [HumanMessage(content=user_prompts["noob"][0])]},
+    config,
+    stream_mode="updates",
+):
+    print(f"event: {event}")
 
 
+# %%
 def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
     config = {"configurable": {"thread_id": "1"}}
     print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
@@ -396,55 +408,6 @@ def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
 
-qs_1 = [
-    "hola",  # 0
-    "que puedes hacer?",  # 1
-    "puedes hacer un ranking de ejecutivos?",  # 2
-    "que datos tienes?",  # 3
-    "ok, dame el tiempo de espera",  # 4
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ok, ya seleccione las oficinas",  # 5
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] semana pasada",  # 6
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 7
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] puedes hacer un ranking de ejecutivos?",  # 8
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] noviembre",  # 9
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el SLA",  # 10
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q registros tienes?",  # 11
-    "cual fue mi primera pregunta?",  # 12
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",  # 13
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA diario del mes pasado",  # 14
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono",  # 15
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono",  # 16
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias",  # 17
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q datos tienes?",  # 18
-    "que datos tienes?",  # 19
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de octubre",  # 20
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo",  # 21
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame las atenciones por serie",  # 22
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] hola",  # 23
-    "hola",  # 24
-    "que haces?",  # 25
-    "gracias",  # 26
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] q haces?",  # 27
-    "que datos tienes?",  # 28
-]
-
-qs_2 = [
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA de octubre",  # 0
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono de septiembre",  # 1
-    "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono de ayer",  # 2
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de la semana pasada",  # 3
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo de hoy",  # 4
-    "Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año",  # 5
-]
-
-config = {"configurable": {"thread_id": "1"}}
-print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
-for event in graph.stream(
-    {"messages": [HumanMessage(content=qs_2[0])]},
-    config,
-    stream_mode="updates",
-):
-    print(f"event: {event}")
 # %%
 run_graph(
     graph,

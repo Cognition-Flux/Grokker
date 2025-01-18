@@ -66,6 +66,14 @@ brief:
   - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] las mejores"
   - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] las peores"
 
+disciplined:
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA de octubre  # 0
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono de septiembre  # 1
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono de ayer  # 2
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de la semana pasada  # 3
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW'] dame los detalles del peor ejecutivo de hoy  # 4
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año  # 5
+
 challenging:
   - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame los mejores  y peores ejecutivos y comparalos"
   - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el ranking de los ejecutivos"

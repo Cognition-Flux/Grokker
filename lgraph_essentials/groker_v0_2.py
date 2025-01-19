@@ -60,6 +60,7 @@ with open("system_prompts/tests_user_prompts.yaml", "r") as file:
     user_prompts = yaml.safe_load(file)
 
 
+# %%
 class CustomGraphState(MessagesState):
     oficinas: list[str] = []
     contexto: SystemMessage = SystemMessage(content="")
@@ -352,118 +353,142 @@ else:
     graph = workflow.compile()
 
 # display(Image(graph.get_graph().draw_mermaid_png()))
+if __name__ == "__main__":
 
-# %%
-config = {"configurable": {"thread_id": "1"}}
-print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
-for event in graph.stream(
-    {"messages": [HumanMessage(content=user_prompts["noob"][-2])]},
-    config,
-    stream_mode="updates",
-):
-    print(f"event: {event}")
-print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
-# %%
-print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
-for event in graph.stream(
-    Command(resume="septiembre"),
-    config,
-    stream_mode="updates",
-):
-    print(f"event: {event}")
-print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
-
-
-# %%
-def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
     config = {"configurable": {"thread_id": "1"}}
     print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
     for event in graph.stream(
-        {"messages": [HumanMessage(content=input_message)]},
+        {"messages": [HumanMessage(content=user_prompts["noob"][-2])]},
         config,
         stream_mode="updates",
     ):
-        mss = next(iter(event.values()))
-        print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
-        if isinstance(mss, dict):
-            if mss.get("messages"):
-                if isinstance(mss.get("messages")[0], BaseMessage):
-                    if hasattr(mss.get("messages")[0], "tool_calls"):
-                        if mss.get("messages")[0].tool_calls:
-                            print(f"tool_calls: {mss.get('messages')[0].tool_calls=}")
-                            print(
-                                f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
-                            )
-                        else:
-                            print(
-                                f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
-                            )
+        print(f"event: {event} {type(event)=}")
 
-                    mss.get("messages")[0].pretty_print()
-            pass
+        if isinstance(event, dict):
+            if "context_request_agent" in event:
+                message = event["context_request_agent"]["messages"][0]
+                print(
+                    f"***RESPUESTA*** ({type(message).__name__=}):  {message.content=}"
+                )
+            if "guidance_agent" in event:
+                if hasattr(event["guidance_agent"]["messages"][0], "tool_calls"):
+                    if len(event["guidance_agent"]["messages"][0].tool_calls) > 0:
+                        if (
+                            event["guidance_agent"]["messages"][0].tool_calls[0]["name"]
+                            == "GuidanceAgentAskHuman"
+                        ):
+                            message = event["guidance_agent"]["messages"][0]
+                            print(
+                                f"***RESPUESTA***: {type(message).__name__=}  {message.tool_calls[0]['args']['question_for_human']=}"
+                            )
+            if "analyst_agent" in event:
+                message = event["analyst_agent"]["messages"][0]
+                print(f"***RESPUESTA***: {type(message).__name__=}  {message.content=}")
 
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
-
-
-def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None:
-    config = {"configurable": {"thread_id": "1"}}
+    # %%
     print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
     for event in graph.stream(
-        Command(resume=input_message),
+        Command(resume="septiembre"),
         config,
         stream_mode="updates",
     ):
-        mss = next(iter(event.values()))
-        print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
-        if isinstance(mss, dict):
-            if mss.get("messages"):
-                if isinstance(mss.get("messages")[0], BaseMessage):
-                    if hasattr(mss.get("messages")[0], "tool_calls"):
-                        if mss.get("messages")[0].tool_calls:
-                            print(f"tool_calls: {mss.get('messages')[0].tool_calls=}")
-                            print(
-                                f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
-                            )
-                        else:
-                            print(
-                                f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
-                            )
-
-                    mss.get("messages")[0].pretty_print()
-            pass
-
+        print(f"event: {event}")
     print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
+    # %%
+    def run_graph(graph: CompiledStateGraph, input_message: str = "hola") -> None:
+        config = {"configurable": {"thread_id": "1"}}
+        print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+        for event in graph.stream(
+            {"messages": [HumanMessage(content=input_message)]},
+            config,
+            stream_mode="updates",
+        ):
+            mss = next(iter(event.values()))
+            print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
+            if isinstance(mss, dict):
+                if mss.get("messages"):
+                    if isinstance(mss.get("messages")[0], BaseMessage):
+                        if hasattr(mss.get("messages")[0], "tool_calls"):
+                            if mss.get("messages")[0].tool_calls:
+                                print(
+                                    f"tool_calls: {mss.get('messages')[0].tool_calls=}"
+                                )
+                                print(
+                                    f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
+                                )
+                            else:
+                                print(
+                                    f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
+                                )
 
-# %%
-run_graph(
-    graph,
-    (qs_1[5]),
-)
-# %%
+                        mss.get("messages")[0].pretty_print()
+                pass
 
-resume_graph(
-    graph,
-    ("ayer"),
-)
+        print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
 
-# %%
-run_graph(
-    graph,
-    ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "listo"),
-)
-# %%
-resume_graph(
-    graph,
-    (
-        "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
-        # ""
-        + "noviembre"
-    ),
-)
+    def resume_graph(graph: CompiledStateGraph, input_message: str = "1980") -> None:
+        config = {"configurable": {"thread_id": "1"}}
+        print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
+        for event in graph.stream(
+            Command(resume=input_message),
+            config,
+            stream_mode="updates",
+        ):
+            mss = next(iter(event.values()))
+            print(f"mensages internos: type: {type(mss)}, mensajes: {mss}")
+            if isinstance(mss, dict):
+                if mss.get("messages"):
+                    if isinstance(mss.get("messages")[0], BaseMessage):
+                        if hasattr(mss.get("messages")[0], "tool_calls"):
+                            if mss.get("messages")[0].tool_calls:
+                                print(
+                                    f"tool_calls: {mss.get('messages')[0].tool_calls=}"
+                                )
+                                print(
+                                    f"tool_calls: {mss.get('messages')[0].tool_calls[0]['name']=}"
+                                )
+                            else:
+                                print(
+                                    f"No hay tool_calls {mss.get('messages')[0].tool_calls=}"
+                                )
 
-# %%
-run_graph(
-    graph,
-    ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "gracias"),
-)
+                        mss.get("messages")[0].pretty_print()
+                pass
+
+        print(f"## FINAL: Próximo paso del grafo: {graph.get_state(config).next}")
+
+
+# # %%
+# run_graph(
+#     graph,
+#     (qs_1[5]),
+# )
+# # %%
+
+# resume_graph(
+#     graph,
+#     ("ayer"),
+# )
+
+# # %%
+# run_graph(
+#     graph,
+#     ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "listo"),
+# )
+# # %%
+# resume_graph(
+#     graph,
+#     (
+#         "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']"
+#         # ""
+#         + "noviembre"
+#     ),
+# )
+
+# # %%
+# run_graph(
+#     graph,
+#     ("Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque']" "gracias"),
+# )

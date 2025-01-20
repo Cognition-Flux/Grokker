@@ -59,8 +59,11 @@ with open(prompts_path, "r", encoding="utf-8") as f:
 with open("system_prompts/tests_user_prompts.yaml", "r") as file:
     user_prompts = yaml.safe_load(file)
 
+system_prompt_prohibited_actions = SystemMessage(
+    content=prompts["prohibited_actions"]["prompt"]
+)
 
-# %%
+
 class CustomGraphState(MessagesState):
     oficinas: list[str] = []
     contexto: SystemMessage = SystemMessage(content="")
@@ -99,6 +102,12 @@ tools_analyst = [
     tool_reporte_detallado_por_ejecutivo,
     executive_ranking_tool,
 ]
+tools_analyst_description = "\n".join(
+    ["name: " + t.name + " - " + t.description for t in tools_analyst]
+)
+# print(tools_analyst_description)
+
+# # %%
 analyst_llm = get_llm().bind_tools(tools_analyst)
 tools_node_analyst = ToolNode(tools_analyst)
 context_request_llm = get_llm(azure_deployment="gpt-4o-mini")
@@ -115,11 +124,18 @@ def guidance_agent(
 ) -> Command[Literal["guidance_agent_ask_human", "tool_node_prompt", END]]:
     print("##################### --- guidance_agent --- #####################")
     prompt_for_guidance = SystemMessage(content=prompts["guidance_agent"]["prompt"])
+    formatted_prompt = prompt_for_guidance.content.format(
+        tools_analyst_description=tools_analyst_description,
+        hoy=datetime.now().strftime("%d/%m/%Y"),
+    )
+    prompt_for_guidance = SystemMessage(content=formatted_prompt)
 
     prompt_for_guidance.pretty_print()
     state["messages"][-1].pretty_print()
 
-    response = llm_guide_agent.invoke([prompt_for_guidance] + state["messages"])
+    response = llm_guide_agent.invoke(
+        [prompt_for_guidance, system_prompt_prohibited_actions] + state["messages"]
+    )
     response.pretty_print()
     print(
         f"""##{len(response.tool_calls)=}
@@ -235,13 +251,17 @@ def context_request_agent(state: CustomGraphState) -> Command[Literal[END]]:
     print("##################### --- context_request_agent --- #####################")
 
     last_message = state["messages"][-1]
-
-    system_prompt = SystemMessage(content=prompts["context_request_agent"]["prompt"])
+    formatted_prompt = prompts["context_request_agent"]["prompt"].format(
+        hoy=datetime.now().strftime("%d/%m/%Y")
+    )
+    system_prompt = SystemMessage(content=formatted_prompt)
     system_prompt.pretty_print()
     input_message = HumanMessage(content=last_message.content)
     input_message.pretty_print()
     print("## ------------------------------ ##")
-    response = context_request_llm.invoke([system_prompt] + [input_message])
+    response = context_request_llm.invoke(
+        [system_prompt, system_prompt_prohibited_actions] + [input_message]
+    )
     response.pretty_print()
     return Command(
         goto=END,
@@ -304,13 +324,16 @@ def analyst_agent(
     )
 
     formatted_prompt = prompts["analyst_agent"]["prompt"].format(
-        oficinas=oficinas, contexto=contexto.content
+        oficinas=oficinas,
+        contexto=contexto.content,
+        hoy=datetime.now().strftime("%d/%m/%Y"),
     )
 
     system_prompt = SystemMessage(content=formatted_prompt)
-
     system_prompt.pretty_print()
-    response = analyst_llm.invoke([system_prompt] + state["messages"])
+    response = analyst_llm.invoke(
+        [system_prompt, system_prompt_prohibited_actions] + state["messages"]
+    )
     print(f"## analyst_agent response: {response}")
     print(f"## tool_calls {len(response.tool_calls)=}")
     if len(response.tool_calls) > 0:

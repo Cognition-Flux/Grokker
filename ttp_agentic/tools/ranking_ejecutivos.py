@@ -1,5 +1,7 @@
 # %%
+import json
 import os
+from datetime import datetime
 from typing import List, Literal
 
 import pandas as pd
@@ -19,22 +21,26 @@ from ttp_agentic.tools.utilities import (
 load_dotenv(override=True)
 
 
-# %%
 def top_executives_report(
     office_names: list[str] = [
         "196 - Buin",
         "022 - Bombero Ossa ",
     ],
-    start_date: str = "2024/10/01",
-    end_date: str = "2024/11/01",
+    # Ahora en formato 'DD/MM/YYYY' por defecto
+    start_date: str = "01/10/2024",
+    end_date: str = "01/11/2024",
     top_ranking: int = 3,
     orden: str = "DESC",
 ):
+    # Convertimos de 'DD/MM/YYYY' a 'YYYY/MM/DD' para la consulta
+    start_date_parsed = datetime.strptime(start_date, "%d/%m/%Y").strftime("%Y/%m/%d")
+    end_date_parsed = datetime.strptime(end_date, "%d/%m/%Y").strftime("%Y/%m/%d")
+
     parsed_office_names = "', '".join(office_names)
 
     query = f"""
-    DECLARE @startDate DATE = CONVERT(DATE, '{start_date}', 111);
-    DECLARE @maxDate DATE = CONVERT(DATE, '{end_date}', 111);
+    DECLARE @startDate DATE = CONVERT(DATE, '{start_date_parsed}', 111);
+    DECLARE @maxDate DATE = CONVERT(DATE, '{end_date_parsed}', 111);
 
     WITH
         ExecutivePerformance AS
@@ -109,11 +115,12 @@ class RankingEjecutivosInput(BaseModel):
         default=["196 - Buin", "022 - Bombero Ossa"],
         description="List of office names to consider in the ranking",
     )
+    # Cambiamos descripción del formato a 'DD/MM/YYYY'
     start_date: str = Field(
-        default="2024/10/01", description="Start date in 'YYYY/MM/DD' format"
+        default="01/10/2024", description="Start date in  '%d/%m/%Y' format"
     )
     end_date: str = Field(
-        default="2024/11/01", description="End date in 'YYYY/MM/DD' format"
+        default="31/10/2024", description="End date in  '%d/%m/%Y' format"
     )
     top_ranking: int = Field(
         default=5,
@@ -132,8 +139,8 @@ class RankingEjecutivosInput(BaseModel):
 
 @add_docstring(
     """
-Ejecutivos (funcionarios) que atendieron en una rango de tiempo ordenados por cantidad de atenciones  (ranking).
-Entrega los peores (si orden=ASC) o mejores  (si orden=DESC) ejecutivos
+Ejecutivos (funcionarios) que atendieron en un rango de tiempo ordenados por cantidad de atenciones (ranking).
+Entrega los peores (si orden=ASC) o mejores (si orden=DESC) ejecutivos
 Parameters:
 {params_doc}
 Returns a table with:
@@ -151,14 +158,14 @@ def get_executive_ranking(input_string: str) -> str:
         return f"Error: {str(e)}"
 
 
-# Create the structured tool
+# Estructuramos el tool para ser invocado
 executive_ranking_tool = StructuredTool.from_function(
     func=get_executive_ranking,
     name="executive_ranking_tool",
     description=get_executive_ranking.__doc__,
     return_direct=True,
 )
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     f"""{print(executive_ranking_tool.description)=},
       {print(executive_ranking_tool.invoke("{}"))=}"""

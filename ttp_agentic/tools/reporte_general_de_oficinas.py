@@ -29,8 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 def validate_data_consistency(
-    global_stats: pd.DataFrame,
-    data_series: pd.DataFrame,  # data_executives: pd.DataFrame
+    global_stats: pd.DataFrame, data_series: pd.DataFrame
 ) -> Tuple[bool, List[str]]:
     """
     Validates data consistency across different tables.
@@ -38,7 +37,6 @@ def validate_data_consistency(
     Args:
         global_stats (pd.DataFrame): DataFrame containing global statistics.
         data_series (pd.DataFrame): DataFrame containing statistics per series.
-        data_executives (pd.DataFrame): DataFrame containing statistics per executive.
 
     Returns:
         Tuple[bool, List[str]]: (is_valid, list of error messages)
@@ -48,7 +46,6 @@ def validate_data_consistency(
     # Validate total abandonos
     total_abandonos_global = global_stats["Total Abandonos"].iloc[0]
     total_abandonos_series = data_series["Abandonos"].sum()
-    # total_abandonos_executives = data_executives["Abandonos"].sum()
 
     if total_abandonos_global != total_abandonos_series:
         errors.append(
@@ -56,28 +53,15 @@ def validate_data_consistency(
             f"≠ Suma por series ({total_abandonos_series})"
         )
 
-    # if total_abandonos_global != total_abandonos_executives:
-    #     errors.append(
-    #         f"Inconsistencia en abandonos: Total global ({total_abandonos_global}) "
-    #         f"≠ Suma por ejecutivos ({total_abandonos_executives})"
-    #     )
-
     # Validate total atenciones
     total_atenciones_global = global_stats["Total Atenciones"].iloc[0]
     total_atenciones_series = data_series["Atenciones"].sum()
-    # total_atenciones_executives = data_executives["Atenciones"].sum()
 
     if total_atenciones_global != total_atenciones_series:
         errors.append(
             f"Inconsistencia en atenciones: Total global ({total_atenciones_global}) "
             f"≠ Suma por series ({total_atenciones_series})"
         )
-
-    # if total_atenciones_global != total_atenciones_executives:
-    #     errors.append(
-    #         f"Inconsistencia en atenciones: Total global ({total_atenciones_global}) "
-    #         f"≠ Suma por ejecutivos ({total_atenciones_executives})"
-    #     )
 
     is_valid = len(errors) == 0
     return is_valid, errors
@@ -197,66 +181,6 @@ def compute_series_statistics(
     ]
 
     return data_series
-
-
-def compute_executive_statistics(
-    office_data: pd.DataFrame, total_atenciones: int
-) -> pd.DataFrame:
-    """
-    Computes statistics per executive.
-
-    Args:
-        office_data (pd.DataFrame): DataFrame containing office data.
-        total_atenciones (int): Total number of attendances.
-
-    Returns:
-        pd.DataFrame: DataFrame containing executive statistics.
-    """
-    data_executives = (
-        office_data.groupby("Ejecutivo")
-        .agg(
-            Atenciones=("Ejecutivo", "count"),
-            Porcentaje_del_Total=(
-                "Ejecutivo",
-                lambda x: (len(x) / total_atenciones) * 100,
-            ),
-            Ultima_atencion=("FH_Emi", "max"),
-            Primera_atencion=("FH_Emi", "min"),
-            Tiempo_Medio_de_Atencion_minutos=("TpoAte", lambda x: x.mean() / 60.0),
-            Dias_con_Atenciones=("FH_Emi", lambda x: x.dt.date.nunique()),
-            Abandonos=("Perdido", "sum"),
-        )
-        .reset_index()
-    )
-
-    # Calculate percentages and averages
-    data_executives["Porcentaje del Total (%)"] = data_executives[
-        "Porcentaje_del_Total"
-    ].round(2)
-    data_executives["Promedio Atenciones Diarias"] = (
-        data_executives["Atenciones"] / data_executives["Dias_con_Atenciones"]
-    ).round(2)
-
-    # Select columns to display
-    data_executives = data_executives[
-        [
-            "Ejecutivo",
-            "Atenciones",
-            "Porcentaje del Total (%)",
-            "Ultima_atencion",
-            "Primera_atencion",
-            "Tiempo_Medio_de_Atencion_minutos",
-            "Promedio Atenciones Diarias",
-            "Abandonos",
-        ]
-    ]
-
-    # Sort executives by Promedio Atenciones Diarias
-    data_executives = data_executives.sort_values(
-        by="Promedio Atenciones Diarias", ascending=False
-    ).reset_index(drop=True)
-
-    return data_executives
 
 
 def compute_daily_statistics(
@@ -440,29 +364,24 @@ def get_office_stats(
     # Compute Statistics per Series
     data_series = compute_series_statistics(office_data, total_atenciones)
 
-    # # Compute Statistics per Executive
-    # data_executives = compute_executive_statistics(office_data, total_atenciones)
-    # executive_names = data_executives["Ejecutivo"].unique()
-
-    # Validate Data Consistency
-    is_valid, errors = validate_data_consistency(
-        global_stats,
-        data_series,  # data_executives
-    )
+    # Validate Data Consistency (ignoring executives now)
+    is_valid, errors = validate_data_consistency(global_stats, data_series)
 
     # Compute Daily Statistics
     daily_stats = compute_daily_statistics(office_data, office_name, corte_espera)
-
-    # Convert DataFrames to Markdown
-    global_stats_table = global_stats.to_markdown(index=False)
-    markdown_table_series = data_series.to_markdown(index=False)
-    # markdown_table_executives = data_executives.to_markdown(index=False)
-    markdown_table_daily = daily_stats.to_markdown(index=False)
 
     # Build the report string
     corte_espera_min = corte_espera / 60.0
     start_date_str = start_date.strftime("%d/%m/%Y")
     end_date_str = end_date.strftime("%d/%m/%Y")
+
+    # Convert DataFrames to Markdown
+    global_stats_table = global_stats.to_markdown(index=False)
+    markdown_table_series = data_series.to_markdown(index=False)
+    markdown_table_daily = daily_stats.to_markdown(index=False)
+
+    # We still want to list the executives, but not calculate or show their table
+    executive_names = office_data["Ejecutivo"].unique()
 
     report = f"""
 ### --------------------------------reporte para extraer información específica que requiere el usuario (solo extraer lo necesario, no mostrar estas tablas completas)----------------------------
@@ -477,10 +396,10 @@ El período analizado es desde {start_date_str} hasta {end_date_str}
         for error in errors:
             report += f"* {error}\n"
 
-    # Add the list of executive names
-    # report += "\n## Lista de Ejecutivos\n"
-    # for name in executive_names:
-    #     report += f"* {name}\n"
+    # Add the list of executive names (no table, just the list)
+    report += "\n## Lista de Ejecutivos\n"
+    for name in executive_names:
+        report += f"* {name}\n"
 
     report += f"""
 ## *Resumen de la sucursal/oficina* (usar la siguiente tabla cuando usuario solicita información general, resumen, o metricas/indicadores resumidos) solo extraer lo necesario.
@@ -656,7 +575,7 @@ Utilizar para obtener información/indicadores sobre Oficinas.
 Parameters:
 {params_doc}
 Returns
-RESUMEN: de la sucursal/oficina: Total Atenciones Tiempo de Espera Abandonos Promedio Atenciones Diarias Nivel de Servicio (o SLA)  Ejecutivos  Escritorios
+RESUMEN: de la sucursal/oficina: Total Atenciones, Tiempo de Espera, Abandonos, Promedio Atenciones Diarias, Nivel de Servicio (o SLA), Escritorios, y opcionalmente la Lista de Ejecutivos.
 SERIES: Indicadores por serie.
 DIARIO: Desempeño diario (Atenciones Totales por día).
 """.format(

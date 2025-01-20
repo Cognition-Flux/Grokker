@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 from uuid import uuid4
 
+import yaml
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -179,69 +180,111 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
     # Process streamed events from the graph and yield messages over the SSE stream.
     print(f"## INICIO: Próximo paso del grafo: {graph.get_state(config).next}")
     message = None
-    while not message:
-        async for event in graph.astream_events(
-            (
-                {"messages": [mensaje_del_usuario]}
-                if not graph.get_state(config).next
-                else Command(resume=mensaje_del_usuario)
-            ),
-            config,
-            version="v2",
+    #while not message:
+    async for event in graph.astream_events(
+        (
+            {"messages": [mensaje_del_usuario]}
+            if not graph.get_state(config).next
+            else Command(resume=mensaje_del_usuario)
+        ),
+        config,
+        version="v2",
+    ):  
+        # print("-----------------------------------")
+        # print(f"***event***: {event}")
+        # print("-----------------------------------")
+        if (
+            "on_chat_model_end" in event["event"]
+            and event["metadata"].get("langgraph_node", "")
+            == "context_request_agent"
         ):
-            # print(f"event: {event}")
+            print(
+                f"#-------------context_request_agent: {event['data']['output']=}"
+            )
+            message = event["data"]["output"]
+            print(f"#-------------context_request_agent: {message=}")
+            if message:
+                print(f"Procesando mensaje: {message=}")
+                message.pretty_print()
+                try:
+                    chat_message = ChatMessage.from_langchain(message)
+                    print(f"1111 {chat_message=}")
+                    chat_message.run_id = str(run_id)
+                    print(f"1111 {chat_message.run_id=}")
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                    continue
 
-            if (
-                "on_chat_model_end" in event["event"]
-                and event["metadata"].get("langgraph_node", "")
-                == "context_request_agent"
-            ):
-                print(
-                    f"#-------------context_request_agent: {event['data']['output']=}"
-                )
-                message = event["data"]["output"]
-                print(f"#-------------context_request_agent: {message=}")
+                yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
-            if (
-                "on_chat_model_end" in event["event"]
-                and event["metadata"].get("langgraph_node", "") == "guidance_agent"
-            ):
-                print(f"#-------------guidance_agent: {event['data']['output']=}")
-                if len(event["data"]["output"].tool_calls) > 0:
-                    if (
-                        event["data"]["output"].tool_calls[0]["name"]
-                        == "GuidanceAgentAskHuman"
-                    ):
-                        message = event["data"]["output"].tool_calls[0]["args"][
-                            "question_for_human"
-                        ]
-                        message = AIMessage(content=message)
-                        print(f"#-------------guidance_agent: {message=}")
-                else:
-                    message = event["data"]["output"]
+        if (
+            "on_chat_model_end" in event["event"]
+            and event["metadata"].get("langgraph_node", "") == "guidance_agent"
+        ):
+            print(f"#-------------guidance_agent: {event['data']['output']=}")
+            if len(event["data"]["output"].tool_calls) > 0:
+                if (
+                    event["data"]["output"].tool_calls[0]["name"]
+                    == "GuidanceAgentAskHuman"
+                ):
+                    message = event["data"]["output"].tool_calls[0]["args"][
+                        "question_for_human"
+                    ]
+                    message = AIMessage(content=message)
                     print(f"#-------------guidance_agent: {message=}")
+                    if message:
+                        print(f"Procesando mensaje: {message=}")
+                        message.pretty_print()
+                        try:
+                            chat_message = ChatMessage.from_langchain(message)
+                            print(f"1111 {chat_message=}")
+                            chat_message.run_id = str(run_id)
+                            print(f"1111 {chat_message.run_id=}")
+                        except Exception as e:
+                            yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                            continue
 
-            if (
-                "on_chat_model_end" in event["event"]
-                and event["metadata"].get("langgraph_node", "") == "analyst_agent"
-            ):
-                print(f"#-------------analyst_agent: {event['data']['output']=}")
+                        yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+
+
+            else:
                 message = event["data"]["output"]
-                print(f"#-------------analyst_agent: {message=}")
+                print(f"#-------------guidance_agent: {message=}")
+                if message:
+                    print(f"Procesando mensaje: {message=}")
+                    message.pretty_print()
+                    try:
+                        chat_message = ChatMessage.from_langchain(message)
+                        print(f"1111 {chat_message=}")
+                        chat_message.run_id = str(run_id)
+                        print(f"1111 {chat_message.run_id=}")
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                        continue
 
-        if message:
-            print(f"Procesando mensaje: {message=}")
-            message.pretty_print()
-            try:
-                chat_message = ChatMessage.from_langchain(message)
-                print(f"1111 {chat_message=}")
-                chat_message.run_id = str(run_id)
-                print(f"1111 {chat_message.run_id=}")
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
-                continue
+                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
-            yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+        if (
+            "on_chat_model_end" in event["event"]
+            and event["metadata"].get("langgraph_node", "") == "analyst_agent"
+        ):
+            print(f"#-------------analyst_agent: {event['data']['output']=}")
+            message = event["data"]["output"]
+            print(f"#-------------analyst_agent: {message=}")
+
+            if message:
+                print(f"Procesando mensaje: {message=}")
+                message.pretty_print()
+                try:
+                    chat_message = ChatMessage.from_langchain(message)
+                    print(f"1111 {chat_message=}")
+                    chat_message.run_id = str(run_id)
+                    print(f"1111 {chat_message.run_id=}")
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                    continue
+
+                yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
     yield "data: [DONE]\n\n"
     print(
@@ -249,34 +292,11 @@ async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None
     )
 
 
-preprompt = "Considera las oficinas ['001 - Huerfanos 740 EDW', '003 - Cauquenes', '004 - Apoquindo EDW', '009 - Vitacura EDW'] "
-qs = [
-    preprompt+"dame los detalles del mejor ejecutivo", #0
-    preprompt+"septiembre", #1
-    preprompt+"que datos hay disponibles?", #2
-    preprompt+"dame el SLA de octubre", #3
-    preprompt+"dame el ranking de ejecutivos de octubre", #4
-    preprompt+"dame los detalles del peor ejecutivo de octubre", #5
-    preprompt+"gracias", #6
-    preprompt+"cual fue mi primera pregunta?", #7
-    preprompt+"hola", #8
-    preprompt+"dame los detalles del mejor ejecutivo", #9
-    preprompt+"octubre", #10
-    preprompt+"hola", #11
-    preprompt+"dame el SLA de todo el mes de noviembre", #12
-    preprompt+"ahora los ejecutivos", #13
-    preprompt+"necesito el reporte", #14
-    preprompt+"para el mes de septiembre", #15
-    preprompt+"resuma nuestra conversación", #16
-    preprompt+"que registros hay", #17
-    preprompt+ "que herramientas tienes?", #18
-    preprompt+ "dame el reporte general de oficinas" , #19
-    preprompt+ "para el mes de octubre", #20
-
-]
+with open("system_prompts/tests_user_prompts.yaml", "r") as file:
+    user_prompts = yaml.safe_load(file)
+print(f"user_prompts: {list(user_prompts.keys())}, ejemplo: {user_prompts['challenging'][-2]}")
 #%%
-
-user_input = UserInput(message='hola', model="gpt-4o", thread_id="0")
+user_input = UserInput(message=user_prompts["disciplined"][1], model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
     print(content, end="----")

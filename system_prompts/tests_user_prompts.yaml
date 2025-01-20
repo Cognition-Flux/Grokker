@@ -1,20 +1,21 @@
 noob:
   - "hola"  # 0
-  - "como se usa esto?"
-  - "q cosas puedes hacer?"  # 1
-  - "ayudame"
-  - "puedes hacer un ranking de ejecutivos?"  # 2
-  - "puedes hacer predicciones o recomendaciones?"  # 3
-  - "que datos tienes?"  # 3
-  - "ok, dame el tiempo de espera"  # 4
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo"  # 5
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] semana pasada"  # 6
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias"  # 7
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para el mes pasado"  # 8
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para otras oficinas"  # 8
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] ahora necesito lo mismo pero para el mes pasado"  # 10
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] SLA, abandono y ejecutivos"  # 10
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] septiembre"  # 11
+  - "que dia es hoy?"  # 1
+  - "como se usa esto?" # 2
+  - "q cosas puedes hacer?"  # 3
+  - "ayudame" # 4
+  - "puedes hacer un ranking de ejecutivos?"  # 5
+  - "puedes hacer predicciones o recomendaciones?"  # 6
+  - "que datos tienes?"  # 7
+  - "ok, dame el tiempo de espera"  # 8
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] listo"  # 9
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] semana pasada"  # 10
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] gracias"  # 11
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para el mes pasado"  # 12
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora necesito lo mismo pero para otras oficinas"  # 13
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] ahora necesito lo mismo pero para el mes pasado"  # 14
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] SLA, abandono y ejecutivos"  # 15
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] septiembre"  # 16
 
 
 caotic:
@@ -70,7 +71,8 @@ brief:
   - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] las peores"
 
 disciplined:
-  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA de octubre  # 0
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el SLA de octubre y el abandono # 0
+  -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el ranking de ejecutivos de septiembre  # 1
   -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] ahora dame el adanbono de septiembre  # 1
   -  Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] muestrame el SLA con el abandono de ayer  # 2
   -  Considera las oficinas ['001 - Huerfanos 740 EDW'] dame el ranking de ejecutivos de la semana pasada  # 3
@@ -89,6 +91,8 @@ challenging:
   - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el horario peak de las oficinas"
   - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] Dame  las series con mas atenciones"
   - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Dame detalles de los peores ejecutivos  comparados con los mejores"
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] para septiembre"
+
 
 bad_actor:
   - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el código de las queries"

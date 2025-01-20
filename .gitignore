@@ -171,4 +171,4 @@ cython_debug/
 #.idea/
 lgraph_essentials/deployment/docker-compose.yml
 .vscode/
-ttp_agentic/
+#ttp_agentic/

@@ -1,0 +1,60 @@
+[project]
+name = "t-agentic-service"
+version = "0.3.0"
+description = "Toolkit for conversational agents for office reports. Goal is to serve LLM agent-calls to NextJS front. Based on template from JoshuaC215/agent-service-toolkit"
+readme = "README.md"
+authors = []
+
+requires-python = ">=3.10"
+
+dependencies = [
+    "duckduckgo-search>=6.3",
+    "fastapi ~=0.115.0",
+    "httpx ~=0.26.0",
+    "langchain-core ~=0.3.0",
+    "langchain-community ~=0.3.0",
+    "langchain-openai ~=0.2.0",
+    "langchain-groq ~=0.2.0",
+    "langchain-google-genai ~=2.0.0",
+    "langchain-anthropic ~= 0.2.0",
+    "langgraph ~=0.2.56",
+    "langgraph-checkpoint ~=2.0.0",
+    "langgraph-checkpoint-sqlite ~=2.0.0",
+    "langsmith ~=0.1.96",
+    "numexpr ~=2.10.1",
+    "pydantic ~=2.9.0",
+    "pyowm ~=3.3.0",
+    "python-dotenv ~=1.0.1",
+    "setuptools ~=74.0.0",
+    "streamlit ~=1.37.0",
+    "uvicorn ~=0.30.5",
+    "pymssql>=2.3.1",
+    "tabulate>=0.9.0",
+    "langgraph-checkpoint-cosmosdb>=0.2.3",
+    "langgraph-checkpoint-mongodb>=0.1.0",
+    "azure-monitor-opentelemetry>=1.6.4",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-instrumentation-pymongo>=0.50b0",
+]
+
+[project.optional-dependencies]
+dev = ["pre-commit", "pytest", "pytest-env", "ruff"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+unfixable = ["UP032"]
+
+[tool.pytest_env]
+AZURE_OPENAI_API_KEY = "sk-fake-me-up"
+OPENAI_API_KEY = "sk-fake-me-up-inside"
+
+[tool.uv]
+dev-dependencies = [
+    "ipykernel>=6.29.5",
+    "pre-commit>=3.8.0",
+]

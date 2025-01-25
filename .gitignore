@@ -221,3 +221,5 @@ ttp_agentic/
 **/next-env.d.ts
 
 **/weaaa.sh
+
+backend/Tasks.json

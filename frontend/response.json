@@ -1,0 +1,29 @@
+{
+  "type": "message",
+  "content": {
+    "type": "ai",
+    "content": "\u00a1Hola! \u00bfEn qu\u00e9 puedo ayudarte hoy?",
+    "tool_calls": [],
+    "tool_call_id": null,
+    "run_id": "4dfbcb8d-a057-4b7e-b9d1-2a0730e6292b",
+    "original": {
+      "type": "ai",
+      "data": {
+        "content": "\u00a1Hola! \u00bfEn qu\u00e9 puedo ayudarte hoy?",
+        "additional_kwargs": {},
+        "response_metadata": {
+          "finish_reason": "stop",
+          "model_name": "gpt-4o-2024-05-13",
+          "system_fingerprint": "fp_fa1dad0729"
+        },
+        "type": "ai",
+        "name": null,
+        "id": "run-3dcee19f-7619-477d-8dd5-b671f0ed5903",
+        "example": false,
+        "tool_calls": [],
+        "invalid_tool_calls": [],
+        "usage_metadata": null
+      }
+    }
+  }
+}

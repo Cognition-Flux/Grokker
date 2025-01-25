@@ -1,0 +1,7 @@
+.information {
+    padding-bottom: 0.5vw;
+    margin-right: 1vw;
+    background-color: #1c1917; /* Color que armoniza con el tema oscuro y tiene un sutil tono marrón */
+    /* o podríamos usar: background-color: #32281f; /* Alternativa un poco más cálida */
+    border-radius: 0.5rem;
+}

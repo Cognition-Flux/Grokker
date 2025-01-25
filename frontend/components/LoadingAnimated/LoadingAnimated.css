@@ -1,0 +1,111 @@
+.loader {
+  margin-top: 0.7vw;
+  color: rgb(124, 124, 124);
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+  font-size: 25px;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+  height: 40px;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  border-radius: 8px;
+  margin-left: 2.5vw;
+}
+
+.words {
+  overflow: hidden;
+  position: relative;
+}
+
+.words::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    var(--bg-color) 10%,
+    transparent 30%,
+    transparent 70%,
+    var(--bg-color) 90%
+  );
+  z-index: 20;
+}
+
+.word {
+  display: block;
+  height: 100%;
+  padding-left: 6px;
+  color: rgb(21 94 117); /* Este es el equivalente del cyan-800 */
+  font-weight: 500;
+  transform: translateY(-200%);
+  animation: moveUp 7s infinite;
+}
+
+@keyframes moveUp {
+  10% {
+    -webkit-transform: translateY(-102%);
+    transform: translateY(-102%);
+  }
+
+  25% {
+    -webkit-transform: translateY(-100%);
+    transform: translateY(-100%);
+  }
+
+  35% {
+    -webkit-transform: translateY(-202%);
+    transform: translateY(-202%);
+  }
+
+  50% {
+    -webkit-transform: translateY(-200%);
+    transform: translateY(-200%);
+  }
+
+  60% {
+    -webkit-transform: translateY(-302%);
+    transform: translateY(-302%);
+  }
+
+  75% {
+    -webkit-transform: translateY(-300%);
+    transform: translateY(-300%);
+  }
+
+  85% {
+    -webkit-transform: translateY(-402%);
+    transform: translateY(-402%);
+  }
+
+  100% {
+    -webkit-transform: translateY(-400%);
+    transform: translateY(-400%);
+  }
+}
+
+.cancelar {
+  display: flex;
+  justify-content: center; /* Centra el texto horizontalmente */
+  align-items: center; /* Centra el texto verticalmente */
+  color: #69bbcf; /* Rojo pastel */
+  border: 1px solid #4ca8ff; /* Borde del mismo color que el texto */
+  border-radius: 12px; /* Borde redondeado */
+  background-color: transparent; /* Fondo transparente */
+  padding: 5px 10px; /* Espaciado interno opcional */
+  text-align: center; /* Centrar el texto */
+  cursor: pointer; /* Cambia el cursor para botones */
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  margin-left: 32px;
+}
+
+.cancelar:hover {
+  background-color: rgba(100, 215, 230, 0.26); /* Color celeste claro transparente */
+}
+
+.loader p {
+  font-weight: 500;
+  font-size: 20px;
+}

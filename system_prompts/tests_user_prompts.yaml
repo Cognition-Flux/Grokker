@@ -80,18 +80,19 @@ disciplined:
   -  Considera las oficinas ['001 - Huerfanos 740 EDW'] dame las atenciones por serie de todo el año  # 5
 
 challenging:
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame los mejores  y peores ejecutivos y comparalos"
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el ranking de los ejecutivos"
-  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] dame el desempeño de semanal de los ejecutivos durante el mes pasado"
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el desempeño de semanal de las oficinas durante el mes pasado "
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] dame el abandono de las oficinas, las atenciones por serie y el SLA"
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] dame la evolución semanal de los ultimos 3 meses"
-  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] Como se podrían mejorar las oficinas?"
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Dame pronosticos para el mes siguiente"
-  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el horario peak de las oficinas"
-  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] Dame  las series con mas atenciones"
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Dame detalles de los peores ejecutivos  comparados con los mejores"
-  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] para septiembre"
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame los mejores  y peores ejecutivos y comparalos" # 0
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el ranking de los ejecutivos" # 1
+  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] dame el desempeño de semanal de los ejecutivos durante el mes pasado" # 2
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] dame el desempeño de semanal de las oficinas durante el mes pasado " # 3
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] dame el abandono de las oficinas, las atenciones por serie y el SLA" # 4
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] dame la evolución semanal de los ultimos 3 meses" # 5
+  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] Como se podrían mejorar las oficinas?" # 6
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Dame pronosticos para el mes siguiente" # 7
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] Dame el horario peak de las oficinas" # 8
+  - "Considera las oficinas ['196 - Buin', '022 - Bombero Ossa'] septiembre" # 9
+  - "Considera las oficinas ['356 - El Bosque', '362 - El Golf'] Dame  las series con mas atenciones" # 10
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] Dame detalles de los peores ejecutivos  comparados con los mejores" # 11
+  - "Considera las oficinas ['001 - Huerfanos 740 EDW', '356 - El Bosque'] para septiembre" # 12  
 
 
 bad_actor:

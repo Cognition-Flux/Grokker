@@ -296,7 +296,7 @@ with open("system_prompts/tests_user_prompts.yaml", "r") as file:
     user_prompts = yaml.safe_load(file)
 print(f"user_prompts: {list(user_prompts.keys())}, ejemplo: {user_prompts['challenging'][-2]}")
 #%%
-user_input = UserInput(message=user_prompts["disciplined"][1], model="gpt-4o", thread_id="0")
+user_input = UserInput(message=user_prompts["challenging"][9], model="gpt-4o", thread_id="0")
 
 async for content in call_graph(graph, user_input):
     print(content, end="----")

@@ -1,0 +1,52 @@
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+extend-exclude = '''
+# A regex preceded with ^/ will apply only to files and directories
+# in the root of the project.
+^/foo.py  # exclude a file named foo.py in the root of the project
+'''
+
+[tool.flake8]
+max-line-length = 88
+max-complexity = 10
+extend-ignore = [
+    "E203", # Whitespace before ':' (needed for Black)
+    "W503", # Line break before binary operator (needed for Black)
+]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "B", # flake8-bugbear
+    "C", # mccabe complexity
+    #"D",   # flake8-docstrings
+    "I",   # flake8-import-order
+    "N",   # pep8-naming
+    "Q",   # flake8-quotes
+    "S",   # flake8-bandit
+    "ANN", # flake8-annotations
+    "BLK", # flake8-black
+    "ERA", # flake8-eradicate
+]
+
+# Configuración de importaciones
+import-order-style = "google"
+application-import-names = ["lgraph_essentials"]
+import-order-grouped-imports = true
+
+# Configuración de docstrings
+#docstring-convention = "google"
+
+# Excluir archivos/directorios
+exclude = [".git", "__pycache__", "build", "dist", "*.pyc", "*.egg-info"]
+
+# Configuración de quotes
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+# Estadísticas
+statistics = true
+count = true

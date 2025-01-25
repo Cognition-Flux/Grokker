@@ -1,2 +1,0 @@
-# Groker
-Multi-agentic app

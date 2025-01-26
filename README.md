@@ -1,2 +1,2 @@
-# Groker
-Multi-agentic app
+# Grokker
+Multi-agentic app for data analysis

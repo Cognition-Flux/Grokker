@@ -1,6 +1,6 @@
 .loader {
   margin-top: 0.7vw;
-  color: rgb(124, 124, 124);
+  color: rgb(164, 164, 164);
   font-family: "Poppins", sans-serif;
   font-weight: 500;
   font-size: 25px;
@@ -86,15 +86,14 @@
 
 .cancelar {
   display: flex;
-  justify-content: center; /* Centra el texto horizontalmente */
-  align-items: center; /* Centra el texto verticalmente */
-  color: #69bbcf; /* Rojo pastel */
-  border: 1px solid #4ca8ff; /* Borde del mismo color que el texto */
-  border-radius: 12px; /* Borde redondeado */
-  background-color: transparent; /* Fondo transparente */
-  padding: 5px 10px; /* Espaciado interno opcional */
-  text-align: center; /* Centrar el texto */
-  cursor: pointer; /* Cambia el cursor para botones */
+  justify-content: center;
+  align-items: center;
+  color: #69bbcf;
+  border-radius: 12px;
+  background-color: transparent;
+  padding: 5px 10px;
+  text-align: center;
+  cursor: pointer;
   font-family: "Poppins", sans-serif;
   font-weight: 400;
   font-size: 15px;

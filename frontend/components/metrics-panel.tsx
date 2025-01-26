@@ -115,12 +115,12 @@ export function MetricsPanel({
     <div className="commands">
       {isOpen && (
         <div className="h-full overflow-auto flex flex-col gap-4 bg-[#1c1c1c] p-4 rounded-lg">
-          <Command className="rounded-md border border-zinc-800 bg-[#1c1c1c] shadow-sm">
+          <Command className="rounded-md bg-[#1c1c1c] border-none">
             <CommandInput 
               placeholder="Busca una pregunta rápida..." 
               value={searchQuestionValue}
               onValueChange={setSearchQuestionValue}
-              className="text-zinc-300 border-b border-zinc-800"
+              className="text-zinc-300 border-none"
             />
             <CommandList className="text-zinc-400">
               <CommandEmpty>No se encontraron resultados.</CommandEmpty>
@@ -134,7 +134,7 @@ export function MetricsPanel({
                           value={pregunta.question}
                           disabled={loading}
                           onSelect={() => handleQuestionSelect(pregunta.question)}
-                          className="hover:bg-zinc-800/50 text-zinc-400"
+                          className="hover:bg-[#1e0f02] text-zinc-400"
                         >
                           {pregunta.question}
                         </CommandItem>
@@ -145,18 +145,18 @@ export function MetricsPanel({
             </CommandList>
           </Command>
 
-          <Command className="rounded-md border border-zinc-800 bg-[#1c1c1c] shadow-sm">
+          <Command className="rounded-md bg-[#1c1c1c]">
             <CommandInput 
               placeholder="Buscar oficina..." 
               value={searchOfficeValue}
               onValueChange={setSearchOfficeValue}
-              className="text-zinc-300 border-b border-zinc-800"
+              className="text-zinc-300"
             />
             <CommandList className="text-zinc-400">
               <CommandEmpty>
                 <div className="grid justify-items-center w-full p-2">
                   <Button variant="ghost" onClick={reloadOffices} 
-                    className="text-zinc-300 hover:text-zinc-200 hover:bg-zinc-800/50">
+                    className="text-zinc-300 hover:text-zinc-200 hover:bg-[#1e0f02]">
                     Recargar oficinas
                   </Button>
                 </div>
@@ -167,7 +167,7 @@ export function MetricsPanel({
                     key={office.ref}
                     value={office.name}
                     onSelect={() => handleOfficeSelect(office.name)}
-                    className="hover:bg-zinc-800/50 text-zinc-400"
+                    className="hover:bg-[#1e0f02] text-zinc-400"
                   >
                     <Checkbox 
                       checked={selectedOffices.includes(office.name)}

@@ -63,7 +63,7 @@ const MessageBox: React.FC<MessageBoxProps> = ({
   };
 
   return (
-    <div className="px-2  border-red-500 flex gap-2 h-6">
+    <div className="px-2 border border-[#FF8C00] flex gap-2 h-6">
       <span className="text-gray-500 mt-1 text-sm">Feedback</span>
       <button onClick={() => handle_button(1)}>
         <ThumbsUp

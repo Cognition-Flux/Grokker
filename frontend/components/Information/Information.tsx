@@ -20,7 +20,7 @@ const Information: React.FC<InformationProps> = ({
   return (
     <div className="flex flex-wrap gap-0.5 justify-start py-0.5 px-2 max-w-full min-h-[1.5rem] items-center h-6">
       <Badge className="bg-[#2c1810] text-amber-100 border-none shadow-sm h-3 text-[10px]">
-        Grokker v0.0.1
+        Grokker™ alpha v0.0.1
       </Badge>
       {selectedOffices &&
         selectedOffices

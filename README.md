@@ -1,5 +1,11 @@
 # Grokker
 
+<div align="left">
+  <p style="color: #666666;">
+    By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>
+  </p>
+</div>
+
 ```mermaid
 %%{
     init: {
@@ -13,19 +19,6 @@
     }
 }%%
 graph TD;
-    subgraph author[" "]
-        direction LR
-        auth["By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>"]
-        style auth fill:none,stroke:none,text-align:right
-    end
-    style author fill:none,stroke:none
-    classDef authorStyle text-align:right;
-    class auth authorStyle
-    
-    %% Posicionamiento del autor en la esquina superior derecha
-    author-->|" "|MainContent[" "]
-    style MainContent fill:none,stroke:none
-    linkStyle 0 stroke:none
     START([🚀 Start]):::first --> clean_messages
     clean_messages --> validate_context
     

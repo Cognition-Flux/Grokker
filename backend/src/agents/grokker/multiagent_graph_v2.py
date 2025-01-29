@@ -1,5 +1,7 @@
 # %%
 import os
+
+os.chdir("/home/alejandro/Desktop/repos/groker/backend/src")
 import re
 import sys
 from pathlib import Path
@@ -11,14 +13,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
-
+from IPython.display import Image, display
 import yaml
-from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
+
+# from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
 
 # Set working directory to file location
-file_path = Path(__file__).resolve()
-os.chdir(file_path.parent)
-sys.path.append(str(file_path.parent.parent))
+# file_path = Path(__file__).resolve()
+# os.chdir(file_path.parent)
+# sys.path.append(str(file_path.parent.parent))
 import os
 from datetime import datetime
 from typing import Annotated, List
@@ -40,7 +43,8 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.types import interrupt
 from pydantic import BaseModel
-from pymongo import AsyncMongoClient
+
+# from pymongo import AsyncMongoClient
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command, interrupt
 
@@ -56,12 +60,11 @@ from langchain_openai import ChatOpenAI
 from langgraph.store.memory import InMemoryStore
 from langgraph.checkpoint.memory import MemorySaver
 
-# %%
-prompts_path = Path("system_prompts/agents_prompts.yaml")
+prompts_path = Path("agents/grokker/system_prompts/agents_prompts.yaml")
 with open(prompts_path, "r", encoding="utf-8") as f:
     prompts = yaml.safe_load(f)
 
-with open("system_prompts/tests_user_prompts.yaml", "r") as file:
+with open("agents/grokker/system_prompts/tests_user_prompts.yaml", "r") as file:
     user_prompts = yaml.safe_load(file)
 
 system_prompt_prohibited_actions = SystemMessage(
@@ -369,7 +372,7 @@ def analyst_agent(
 
 
 workflow = StateGraph(CustomGraphState)
-# Nodos
+#
 workflow.add_node("clean_messages", clean_messages)
 workflow.add_node("guidance_agent", guidance_agent)
 workflow.add_node("tool_node_prompt", tool_node_prompt)
@@ -380,17 +383,88 @@ workflow.add_node("context_request_agent", context_request_agent)
 workflow.add_node("analyst_agent", analyst_agent)
 workflow.add_node("tools_node_analyst", tools_node_analyst)
 workflow.add_node("validate_state", validate_state)
-# Conexiones
+#
 workflow.add_edge(START, "clean_messages")
-# workflow.add_edge("clean_messages", "guidance_agent")
 workflow.add_edge("guidance_agent_ask_human", "guidance_agent")
 workflow.add_edge("clean_messages", "validate_context")
 workflow.add_edge("process_context", "validate_state")
 workflow.add_edge("tool_node_prompt", "validate_state")
 workflow.add_edge("tools_node_analyst", "analyst_agent")
-
+#
 across_thread_memory = InMemoryStore()
 within_thread_memory = MemorySaver()
-
-# Compile the graph with the checkpointer fir and store
+#
 graph = workflow.compile(checkpointer=within_thread_memory, store=across_thread_memory)
+
+
+# %%
+from langchain_core.runnables.graph import (
+    CurveStyle,
+    MermaidDrawMethod,
+    NodeStyles,
+)
+from IPython.display import Image
+import nest_asyncio
+from langchain_core.runnables.graph_mermaid import draw_mermaid_png
+
+nest_asyncio.apply()
+
+# Crear la sintaxis Mermaid con un estilo más moderno
+mermaid_syntax = """%%{
+    init: {
+        'theme': 'dark',
+        'flowchart': {
+            'curve': 'basis',
+            'defaultLinkColor': '#4B6B8C',
+            'nodeSpacing': 100,
+            'rankSpacing': 50
+        }
+    }
+}%%
+graph TD;
+    START([🚀 Start]):::first --> clean_messages
+    clean_messages --> validate_context
+    
+    validate_context --> guidance_agent{{Guidance Agent}}
+    validate_context --> process_context
+    validate_context --> context_request_agent{{Context Request Agent}}
+    
+    guidance_agent{{Guidance Agent}} --> guidance_agent_ask_human
+    guidance_agent{{Guidance Agent}} --> tool_node_prompt
+    guidance_agent{{Guidance Agent}} --> END([🏁 End]):::last
+    
+    guidance_agent_ask_human --> guidance_agent{{Guidance Agent}}
+    
+    process_context --> validate_state
+    tool_node_prompt --> validate_state
+    
+    context_request_agent{{Context Request Agent}} --> END
+    
+    validate_state --> analyst_agent{{Analyst Agent}}
+    
+    analyst_agent{{Analyst Agent}} --> tools_node_analyst
+    analyst_agent{{Analyst Agent}} --> END
+    
+    tools_node_analyst --> analyst_agent{{Analyst Agent}}
+
+    classDef default fill:#2E3D54,stroke:none,rx:10,ry:10;
+    classDef first fill:#1B5E20,stroke:none,rx:15,ry:15;
+    classDef last fill:#0066CC,stroke:none,rx:15,ry:15;
+    classDef agent fill:#614C66,stroke:none;
+    
+    %% Styling for agents
+    style guidance_agent fill:#614C66,stroke:none
+    style analyst_agent fill:#614C66,stroke:none
+    style context_request_agent fill:#614C66,stroke:none
+"""
+
+# Generar y guardar la imagen
+img_data = draw_mermaid_png(
+    mermaid_syntax,
+    draw_method=MermaidDrawMethod.PYPPETEER,
+    background_color="#1A1B26",
+    padding=30,
+)
+
+with open("workflow.png", "wb") as f:
+    f.write(img_data)

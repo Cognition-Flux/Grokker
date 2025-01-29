@@ -48,3 +48,6 @@ graph TD;
     style analyst_agent fill:#614C66,stroke:none
     style context_request_agent fill:#614C66,stroke:none
 ```
+
+![WebApp home](docs/Screenshot1.png)
+![WebApp chat](docs/Screenshot2.png)

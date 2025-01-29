@@ -2,52 +2,20 @@
 import os
 
 os.chdir("/home/alejandro/Desktop/repos/groker/backend/src")
-import re
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
 import json
-import os
-import re
-import sys
-from datetime import datetime
-from pathlib import Path
-from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
-from IPython.display import Image, display
-import yaml
-
-# from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
 
 # Set working directory to file location
 # file_path = Path(__file__).resolve()
 # os.chdir(file_path.parent)
 # sys.path.append(str(file_path.parent.parent))
 import os
+import re
+import sys
 from datetime import datetime
-from typing import Annotated, List
+from pathlib import Path
+from typing import Annotated, Dict, List, Literal, Sequence, TypedDict
 
-from langchain_core.messages import (
-    AIMessage,
-    BaseMessage,
-    HumanMessage,
-    RemoveMessage,
-    SystemMessage,
-    ToolMessage,
-)
-
-from langchain_core.tools import tool
-from langchain_openai import AzureChatOpenAI
-
-from langgraph.graph import END, START, MessagesState, StateGraph
-from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
-from langgraph.types import interrupt
-from pydantic import BaseModel
-
-# from pymongo import AsyncMongoClient
-from langgraph.graph.state import CompiledStateGraph
-from langgraph.types import Command, interrupt
-
+import yaml
 from agents.grokker.tools.ranking_ejecutivos import executive_ranking_tool
 from agents.grokker.tools.registros_disponibles import rango_registros_disponibles
 from agents.grokker.tools.reporte_detallado_por_ejecutivo import (
@@ -56,9 +24,31 @@ from agents.grokker.tools.reporte_detallado_por_ejecutivo import (
 from agents.grokker.tools.reporte_general_de_oficinas import (
     tool_reporte_extenso_de_oficinas,
 )
-from langchain_openai import ChatOpenAI
-from langgraph.store.memory import InMemoryStore
+from dotenv import load_dotenv
+from IPython.display import Image, display
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from langchain_core.tools import tool
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph.message import add_messages
+
+# from pymongo import AsyncMongoClient
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import ToolNode
+from langgraph.store.memory import InMemoryStore
+from langgraph.types import Command, interrupt
+from pydantic import BaseModel
+
+# from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
+
 
 prompts_path = Path("agents/grokker/system_prompts/agents_prompts.yaml")
 with open(prompts_path, "r", encoding="utf-8") as f:
@@ -398,73 +388,73 @@ graph = workflow.compile(checkpointer=within_thread_memory, store=across_thread_
 
 
 # %%
-from langchain_core.runnables.graph import (
-    CurveStyle,
-    MermaidDrawMethod,
-    NodeStyles,
-)
-from IPython.display import Image
-import nest_asyncio
-from langchain_core.runnables.graph_mermaid import draw_mermaid_png
+# from langchain_core.runnables.graph import (
+#     CurveStyle,
+#     MermaidDrawMethod,
+#     NodeStyles,
+# )
+# from IPython.display import Image
+# import nest_asyncio
+# from langchain_core.runnables.graph_mermaid import draw_mermaid_png
 
-nest_asyncio.apply()
+# nest_asyncio.apply()
 
-# Crear la sintaxis Mermaid con un estilo más moderno
-mermaid_syntax = """%%{
-    init: {
-        'theme': 'dark',
-        'flowchart': {
-            'curve': 'basis',
-            'defaultLinkColor': '#4B6B8C',
-            'nodeSpacing': 100,
-            'rankSpacing': 50
-        }
-    }
-}%%
-graph TD;
-    START([🚀 Start]):::first --> clean_messages
-    clean_messages --> validate_context
-    
-    validate_context --> guidance_agent{{Guidance Agent}}
-    validate_context --> process_context
-    validate_context --> context_request_agent{{Context Request Agent}}
-    
-    guidance_agent{{Guidance Agent}} --> guidance_agent_ask_human
-    guidance_agent{{Guidance Agent}} --> tool_node_prompt
-    guidance_agent{{Guidance Agent}} --> END([🏁 End]):::last
-    
-    guidance_agent_ask_human --> guidance_agent{{Guidance Agent}}
-    
-    process_context --> validate_state
-    tool_node_prompt --> validate_state
-    
-    context_request_agent{{Context Request Agent}} --> END
-    
-    validate_state --> analyst_agent{{Analyst Agent}}
-    
-    analyst_agent{{Analyst Agent}} --> tools_node_analyst
-    analyst_agent{{Analyst Agent}} --> END
-    
-    tools_node_analyst --> analyst_agent{{Analyst Agent}}
+# # Crear la sintaxis Mermaid con un estilo más moderno
+# mermaid_syntax = """%%{
+#     init: {
+#         'theme': 'dark',
+#         'flowchart': {
+#             'curve': 'basis',
+#             'defaultLinkColor': '#4B6B8C',
+#             'nodeSpacing': 100,
+#             'rankSpacing': 50
+#         }
+#     }
+# }%%
+# graph TD;
+#     START([🚀 Start]):::first --> clean_messages
+#     clean_messages --> validate_context
 
-    classDef default fill:#2E3D54,stroke:none,rx:10,ry:10;
-    classDef first fill:#1B5E20,stroke:none,rx:15,ry:15;
-    classDef last fill:#0066CC,stroke:none,rx:15,ry:15;
-    classDef agent fill:#614C66,stroke:none;
-    
-    %% Styling for agents
-    style guidance_agent fill:#614C66,stroke:none
-    style analyst_agent fill:#614C66,stroke:none
-    style context_request_agent fill:#614C66,stroke:none
-"""
+#     validate_context --> guidance_agent{{Guidance Agent}}
+#     validate_context --> process_context
+#     validate_context --> context_request_agent{{Context Request Agent}}
 
-# Generar y guardar la imagen
-img_data = draw_mermaid_png(
-    mermaid_syntax,
-    draw_method=MermaidDrawMethod.PYPPETEER,
-    background_color="#1A1B26",
-    padding=30,
-)
+#     guidance_agent{{Guidance Agent}} --> guidance_agent_ask_human
+#     guidance_agent{{Guidance Agent}} --> tool_node_prompt
+#     guidance_agent{{Guidance Agent}} --> END([🏁 End]):::last
 
-with open("workflow.png", "wb") as f:
-    f.write(img_data)
+#     guidance_agent_ask_human --> guidance_agent{{Guidance Agent}}
+
+#     process_context --> validate_state
+#     tool_node_prompt --> validate_state
+
+#     context_request_agent{{Context Request Agent}} --> END
+
+#     validate_state --> analyst_agent{{Analyst Agent}}
+
+#     analyst_agent{{Analyst Agent}} --> tools_node_analyst
+#     analyst_agent{{Analyst Agent}} --> END
+
+#     tools_node_analyst --> analyst_agent{{Analyst Agent}}
+
+#     classDef default fill:#2E3D54,stroke:none,rx:10,ry:10;
+#     classDef first fill:#1B5E20,stroke:none,rx:15,ry:15;
+#     classDef last fill:#0066CC,stroke:none,rx:15,ry:15;
+#     classDef agent fill:#614C66,stroke:none;
+
+#     %% Styling for agents
+#     style guidance_agent fill:#614C66,stroke:none
+#     style analyst_agent fill:#614C66,stroke:none
+#     style context_request_agent fill:#614C66,stroke:none
+# """
+
+# # Generar y guardar la imagen
+# img_data = draw_mermaid_png(
+#     mermaid_syntax,
+#     draw_method=MermaidDrawMethod.PYPPETEER,
+#     background_color="#1A1B26",
+#     padding=30,
+# )
+
+# with open("workflow.png", "wb") as f:
+#     f.write(img_data)

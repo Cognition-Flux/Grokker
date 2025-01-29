@@ -19,6 +19,12 @@
     }
 }%%
 graph TD;
+    subgraph author[" "]
+        direction LR
+        auth["By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>"]
+        style auth fill:none,stroke:none
+    end
+    style author fill:none,stroke:none
     START([🚀 Start]):::first --> clean_messages
     clean_messages --> validate_context
     

@@ -1,21 +1,21 @@
 # %%
-import os
 from typing import List, Literal
 
-from dotenv import load_dotenv
-
-try:
-    load_dotenv()
-    os.chdir("/home/alejandro/Desktop/repos/Agent.App/src")
-except Exception:
-    pass
-
 import pandas as pd
+from dotenv import load_dotenv
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from tooling.db_instance import _engine
-from tooling.utilities import add_docstring, get_documentation, parse_input, remove_extra_spaces
+from tooling.utilities import (
+    add_docstring,
+    get_documentation,
+    parse_input,
+    remove_extra_spaces,
+)
+
+load_dotenv(override=True)
+from datetime import datetime
 
 
 def top_executives_report(
@@ -23,16 +23,21 @@ def top_executives_report(
         "196 - Buin",
         "022 - Bombero Ossa ",
     ],
-    start_date: str = "2024/10/01",
-    end_date: str = "2024/11/01",
+    # Ahora en formato 'DD/MM/YYYY' por defecto
+    start_date: str = "01/10/2024",
+    end_date: str = "01/11/2024",
     top_ranking: int = 3,
     orden: str = "DESC",
 ):
+    # Convertimos de 'DD/MM/YYYY' a 'YYYY/MM/DD' para la consulta
+    start_date_parsed = datetime.strptime(start_date, "%d/%m/%Y").strftime("%Y/%m/%d")
+    end_date_parsed = datetime.strptime(end_date, "%d/%m/%Y").strftime("%Y/%m/%d")
+
     parsed_office_names = "', '".join(office_names)
 
     query = f"""
-    DECLARE @startDate DATE = CONVERT(DATE, '{start_date}', 111);
-    DECLARE @maxDate DATE = CONVERT(DATE, '{end_date}', 111);
+    DECLARE @startDate DATE = CONVERT(DATE, '{start_date_parsed}', 111);
+    DECLARE @maxDate DATE = CONVERT(DATE, '{end_date_parsed}', 111);
 
     WITH
         ExecutivePerformance AS
@@ -90,9 +95,7 @@ def top_executives_report(
         data: pd.DataFrame = pd.read_sql_query(query, conn)
 
     if data.empty:
-        return (
-            f"Sin data disponible en el rango ({start_date} - {end_date}) u oficinas seleccionadas."
-        )
+        return f"Sin data disponible en el rango ({start_date} - {end_date}) u oficinas seleccionadas."
 
     markdown_table = data.to_markdown(index=False)
 
@@ -109,10 +112,17 @@ class RankingEjecutivosInput(BaseModel):
         default=["196 - Buin", "022 - Bombero Ossa"],
         description="List of office names to consider in the ranking",
     )
-    start_date: str = Field(default="2024/10/01", description="Start date in 'YYYY/MM/DD' format")
-    end_date: str = Field(default="2024/11/01", description="End date in 'YYYY/MM/DD' format")
+    # Cambiamos descripción del formato a 'DD/MM/YYYY'
+    start_date: str = Field(
+        default="01/10/2024", description="Start date in  '%d/%m/%Y' format"
+    )
+    end_date: str = Field(
+        default="31/10/2024", description="End date in  '%d/%m/%Y' format"
+    )
     top_ranking: int = Field(
-        default=5, description="Number of executives to show, length of the ranking", ge=1
+        default=5,
+        description="Number of executives to show, length of the ranking",
+        ge=1,
     )
     orden: Literal["ASC", "DESC"] = Field(
         default="DESC",
@@ -126,14 +136,16 @@ class RankingEjecutivosInput(BaseModel):
 
 @add_docstring(
     """
-Ejecutivos (funcionarios) que atendieron en una rango de tiempo ordenados por cantidad de atenciones  (ranking).
-Entrega los peores (si orden=ASC) o mejores  (si orden=DESC) ejecutivos
+Ejecutivos (funcionarios) que atendieron en un rango de tiempo ordenados por cantidad de atenciones (ranking).
+Entrega los peores (si orden=ASC) o mejores (si orden=DESC) ejecutivos
 Parameters:
 {params_doc}
 Returns a table with:
 |Ranking|Oficina|Ejecutivo| Series|Total Atenciones|Atenciones Diarias promedio |Tiempo de atencion promedio (min)| Rango Registros|
 
-""".format(params_doc=RankingEjecutivosInput.get_documentation_for_tool())
+""".format(
+        params_doc=RankingEjecutivosInput.get_documentation_for_tool()
+    )
 )
 def get_executive_ranking(input_string: str) -> str:
     try:
@@ -143,16 +155,14 @@ def get_executive_ranking(input_string: str) -> str:
         return f"Error: {str(e)}"
 
 
-# Create the structured tool
+# Estructuramos el tool para ser invocado
 executive_ranking_tool = StructuredTool.from_function(
     func=get_executive_ranking,
     name="executive_ranking_tool",
     description=get_executive_ranking.__doc__,
     return_direct=True,
 )
-# f"""{print(executive_ranking_tool.description)=},
-#       {print(executive_ranking_tool.invoke("{}"))=}"""
-###################################################################################################### -------------------
 
-
-#
+if __name__ == "__main__":
+    f"""{print(executive_ranking_tool.description)=},
+      {print(executive_ranking_tool.invoke("{}"))=}"""

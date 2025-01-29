@@ -19,15 +19,7 @@ from langgraph.types import Command
 from langsmith import Client as LangsmithClient
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.pymongo import PymongoInstrumentor
-
-import service.app_insights
-
-# from agent import research_assistant as office_assistant
-from agent import graph as office_assistant
-
-# from agent.ttp_agentic.multiagent_graph import graph
-# from agent.ttp_agentic.multiagent_graph_v2 import system_prompt_prohibited_actions
-from agent.ttp_agentic.multiagent_graph_v2 import graph
+from agents.grokker.multiagent_graph_v2 import graph
 from schema import (
     ChatHistory,
     ChatHistoryInput,
@@ -51,39 +43,6 @@ PymongoInstrumentor().instrument()
 
 warnings.filterwarnings("ignore", category=LangChainBetaWarning)
 
-service.app_insights.run_empty()
-
-
-async def call_graph(graph: CompiledStateGraph, user_input: StreamInput) -> None:
-    kwargs, run_id = _parse_input(user_input)
-    config = {
-        "configurable": {"thread_id": kwargs["config"]["configurable"]["thread_id"]}
-    }
-    mensaje_del_usuario = kwargs["input"]["messages"][-1]
-    node_to_stream: str = "agent"
-    if graph.get_state(config).next == () or not graph.get_state(config).next:
-        async for event in graph.astream_events(
-            {"messages": [mensaje_del_usuario]}, config, version="v2"
-        ):
-            if (
-                event["event"] == "on_chat_model_stream"
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
-            ):
-                data = event["data"]
-                if data["chunk"].content:
-                    yield data["chunk"].content
-    else:
-        async for event in graph.astream_events(
-            Command(resume=mensaje_del_usuario), config, version="v2"
-        ):
-            if (
-                event["event"] == "on_chat_model_stream"
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
-            ):
-                data = event["data"]
-                if data["chunk"].content:
-                    yield data["chunk"].content
-
 
 def verify_bearer(
     http_auth: Annotated[
@@ -96,21 +55,9 @@ def verify_bearer(
 
 
 bearer_depend = [Depends(verify_bearer)] if os.getenv("AUTH_SECRET") else None
+app = FastAPI()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Construct agent with Sqlite checkpointer
-    async with AsyncMongoDBSaver.from_conn_string(
-        os.getenv("MONGO_CONNECTION_STRING")
-    ) as saver:
-        graph.checkpointer = saver
-        app.state.agent = graph
-        yield
-    # context manager will clean up the AsyncSqliteSaver on exit
-
-
-app = FastAPI(lifespan=lifespan)
 router = APIRouter(dependencies=bearer_depend)
 
 
@@ -126,162 +73,6 @@ def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
         ),
     }
     return kwargs, run_id
-
-
-def _remove_tool_calls(content: str | list[str | dict]) -> str | list[str | dict]:
-    """Remove tool calls from content."""
-    if isinstance(content, str):
-        return content
-    # Currently only Anthropic models stream tool calls, using content item type tool_use.
-    return [
-        content_item
-        for content_item in content
-        if isinstance(content_item, str)
-        or (content_item["type"] != "tool_use" and content_item["type"] != "tool")
-    ]
-
-
-@router.post("/invoke")
-async def invoke(user_input: UserInput) -> ChatMessage:
-    """
-    Invoke the agent with user input to retrieve a final response.
-
-    Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
-    is also attached to messages for recording feedback.
-    """
-    agent: CompiledStateGraph = graph  # app.state.agent
-    kwargs, run_id = _parse_input(user_input)
-    try:
-        response = await agent.ainvoke(**kwargs)
-        output = ChatMessage.from_langchain(response["messages"][-1])
-        output.run_id = str(run_id)
-        return output
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None]:
-    """
-    Generate a stream of messages from the agent.
-
-    This is the workhorse method for the /stream endpoint.
-    """
-    kwargs, run_id = _parse_input(user_input)
-    mensaje_del_usuario = kwargs["input"]["messages"][-1]
-
-    # if os.getenv("DEV_CHECKPOINTER"):
-    #     config = {"configurable": {"thread_id": "0"}}
-    # else:
-    #     config = {"configurable": {"thread_id": kwargs["config"]["configurable"]["thread_id"]}}
-
-    config = {
-        "configurable": {"thread_id": kwargs["config"]["configurable"]["thread_id"]}
-    }
-
-    node_to_stream: str = "agent"
-
-    # FIXME: This should be completly async, but instead the get_state is blocking the thread
-
-    latest_checkpoint = await graph.aget_state(config)
-
-    # if graph.get_state(config).next == () or not graph.get_state(config).next:
-    if latest_checkpoint.next == () or not latest_checkpoint.next:
-        # Process streamed events from the graph and yield messages over the SSE stream.
-        async for event in graph.astream_events(
-            {"messages": [mensaje_del_usuario]}, config, version="v2"
-        ):
-
-            # Yield messages written to the graph state after node execution finishes.
-            if (
-                event["event"] == "on_chain_end"
-                # on_chain_end gets called a bunch of times in a graph execution
-                # This filters out everything except for "graph node finished"
-                and any(t.startswith("graph:step:") for t in event.get("tags", []))
-                and "messages" in event["data"]["output"]
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
-            ):
-                new_messages = event["data"]["output"]["messages"]
-
-                print(f"#### 11111 {new_messages=}")
-                for message in new_messages:
-                    if not isinstance(message, AIMessage):
-                        continue
-                    print(f"1111 {message=}")
-                    message.pretty_print()
-                    try:
-                        chat_message = ChatMessage.from_langchain(message)
-                        print(f"1111 {chat_message=}")
-                        chat_message.run_id = str(run_id)
-                        print(f"1111 {chat_message.run_id=}")
-                    except Exception as e:
-                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
-                        continue
-
-                    try:
-                        if message.tool_calls:
-                            for tool_call in message.tool_calls:
-                                print(
-                                    f"111111 Tool Call: {tool_call} {type(tool_call)}"
-                                )
-                                if (
-                                    tool_call["type"] == "tool_call"
-                                    and tool_call["name"] == "AskHuman"
-                                ):
-                                    question = tool_call["args"]["question"]
-                                    print(f"Question: {question}")
-                                    chat_message.content = question
-
-                        yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        continue
-        yield "data: [DONE]\n\n"
-
-    else:
-        async for event in graph.astream_events(
-            Command(resume=mensaje_del_usuario), config, version="v2"
-        ):
-            if (
-                event["event"] == "on_chain_end"
-                # on_chain_end gets called a bunch of times in a graph execution
-                # This filters out everything except for "graph node finished"
-                and any(t.startswith("graph:step:") for t in event.get("tags", []))
-                and "messages" in event["data"]["output"]
-                and event["metadata"].get("langgraph_node", "") == node_to_stream
-            ):
-                new_messages = event["data"]["output"]["messages"]
-                print(f"####  2222 {new_messages=}")
-                for message in new_messages:
-                    if not isinstance(message, AIMessage):
-                        continue
-                    print(f"2222 {message=}")
-                    message.pretty_print()
-                    try:
-                        chat_message = ChatMessage.from_langchain(message)
-                        print(f"2222 {chat_message=}")
-                        chat_message.run_id = str(run_id)
-                        print(f"2222 {chat_message.run_id=}")
-                    except Exception as e:
-                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
-                        continue
-                    try:
-                        if message.tool_calls:
-                            for tool_call in message.tool_calls:
-                                print(
-                                    f"111111 Tool Call: {tool_call} {type(tool_call)}"
-                                )
-                                if (
-                                    tool_call["type"] == "tool_call"
-                                    and tool_call["name"] == "AskHuman"
-                                ):
-                                    question = tool_call["args"]["question"]
-                                    print(f"Question: {question}")
-                                    chat_message.content = question
-                        yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        continue
-        yield "data: [DONE]\n\n"
 
 
 async def message_generator_v2(user_input: StreamInput) -> AsyncGenerator[str, None]:
@@ -452,66 +243,6 @@ async def stream_agent(user_input: StreamInput) -> StreamingResponse:
     return StreamingResponse(
         message_generator_v2(user_input), media_type="text/event-stream"
     )
-
-
-# @app.post(
-#     "/stream", response_class=StreamingResponse, responses=_sse_response_example()
-# )
-# async def stream_agent(user_input: StreamInput) -> StreamingResponse:
-
-#     async def generate() -> typing.AsyncIterator[str]:
-#         accumulated_content = []
-#         async for content in call_graph(graph, user_input):
-#             accumulated_content.append(content)
-#             yield f'data: {{"type": "token", "content": "{content}"}}\n\n'
-#         full_message = "".join(accumulated_content)
-#         yield f'data: {{"type": "message", "content": "{full_message}"}}\n\n'
-#         yield "data: [DONE]\n\n"
-
-#     return StreamingResponse(generate(), media_type="text/event-stream")
-
-
-@router.post("/feedback")
-async def feedback(feedback: Feedback) -> FeedbackResponse:
-    """
-    Record feedback for a run to LangSmith.
-
-    This is a simple wrapper for the LangSmith create_feedback API, so the
-    credentials can be stored and managed in the service rather than the client.
-    See: https://api.smith.langchain.com/redoc#tag/feedback/operation/create_feedback_api_v1_feedback_post
-    """
-    client = LangsmithClient()
-    kwargs = feedback.kwargs or {}
-    client.create_feedback(
-        run_id=feedback.run_id,
-        key=feedback.key,
-        score=feedback.score,
-        **kwargs,
-    )
-    return FeedbackResponse()
-
-
-@router.post("/history")
-def history(input: ChatHistoryInput) -> ChatHistory:
-    """
-    Get chat history.
-    """
-    agent: CompiledStateGraph = app.state.agent
-    try:
-        state_snapshot = agent.get_state(
-            config=RunnableConfig(
-                configurable={
-                    "thread_id": input.thread_id,
-                }
-            )
-        )
-        messages: list[AnyMessage] = state_snapshot.values["messages"]
-        chat_messages: list[ChatMessage] = []
-        for message in messages:
-            chat_messages.append(ChatMessage.from_langchain(message))
-        return ChatHistory(messages=chat_messages)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 app.include_router(router)

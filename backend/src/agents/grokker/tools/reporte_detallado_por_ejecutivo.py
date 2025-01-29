@@ -33,7 +33,9 @@ def generar_reporte_especifico_de_estado(df, evento):
             raise ValueError("Se requiere un DataFrame válido")
 
         if not {"FH_Eve", "Evento"}.issubset(df.columns):
-            raise ValueError("El DataFrame debe contener las columnas 'FH_Eve' y 'Evento'")
+            raise ValueError(
+                "El DataFrame debe contener las columnas 'FH_Eve' y 'Evento'"
+            )
 
         if evento not in ["P", "A"]:
             raise ValueError("El evento debe ser 'P' o 'A'")
@@ -80,7 +82,9 @@ def generar_reporte_especifico_de_estado(df, evento):
                             continue  # Saltar este evento si hay error
 
                     # Calcular tiempo total de eventos para el día
-                    tiempo_total_dia = np.array(todas_los_eventos).sum() if todas_los_eventos else 0
+                    tiempo_total_dia = (
+                        np.array(todas_los_eventos).sum() if todas_los_eventos else 0
+                    )
 
                     # Agregar al reporte
                     tipo_evento = "Pausas" if evento == "P" else "intervalos atendiendo"
@@ -97,8 +101,12 @@ tiempo {'en Pausas' if evento == 'P' else 'atendiendo'}: {tiempo_total_dia:.2f} 
             try:
                 tiempo_total_en_el_evento = np.array(total_eventos_diarios).sum()
                 n_dias = n_dia + 1 if n_dia >= 0 else 1
-                promedio_diario_de_tiempo_en_el_evento = tiempo_total_en_el_evento / n_dias
-                promedio_cantidad = np.array(cantidad_diaria).mean() if cantidad_diaria else 0
+                promedio_diario_de_tiempo_en_el_evento = (
+                    tiempo_total_en_el_evento / n_dias
+                )
+                promedio_cantidad = (
+                    np.array(cantidad_diaria).mean() if cantidad_diaria else 0
+                )
 
                 fecha_min = min(df["Fecha"]) if len(df["Fecha"]) > 0 else "N/A"
                 fecha_max = max(df["Fecha"]) if len(df["Fecha"]) > 0 else "N/A"
@@ -111,9 +119,9 @@ Global:
 Tiempo total {"en Pausas" if evento == "P" else "atendiendo"}: {tiempo_total_en_el_evento/60:.2f} horas
 Promedio diario de tiempo {"en Pausas" if evento == "P" else "atendiendo"}: {promedio_diario_de_tiempo_en_el_evento if evento == "P" else promedio_diario_de_tiempo_en_el_evento/60:.2f} {"minutos" if evento == "P" else "horas"}
 Promedio diario de cantidad de {tipo_evento}: {int(promedio_cantidad)}
-Detalles:
-{reporte_e}
 """
+                # Detalles:
+                # {'reporte_e'}
                 return (
                     reporte_final,
                     tiempo_total_en_el_evento,
@@ -174,13 +182,15 @@ def reporte_general_estados(df, nombre):
                 tiempo_total = tiempo_total_en_el_eventoA + tiempo_total_en_el_eventoP
                 if tiempo_total > 0:
                     p = 100 * tiempo_total_en_el_eventoP / tiempo_total
-                    reporte_ejecutivo += (
-                        f"\n {nombre} tiene un porcentaje de tiempo total en pausa de {p:.2f}%"
-                    )
+                    reporte_ejecutivo += f"\n {nombre} tiene un porcentaje de tiempo total en pausa de {p:.2f}%"
                 else:
-                    reporte_ejecutivo += f"\n {nombre} no tiene tiempo registrado en el período"
+                    reporte_ejecutivo += (
+                        f"\n {nombre} no tiene tiempo registrado en el período"
+                    )
             except Exception as e:
-                reporte_ejecutivo += f"\nError al calcular porcentaje de tiempo en pausa: {str(e)}"
+                reporte_ejecutivo += (
+                    f"\nError al calcular porcentaje de tiempo en pausa: {str(e)}"
+                )
 
             reporte_ejecutivo += "\n\nFin del reporte"
             return reporte_ejecutivo
@@ -223,10 +233,12 @@ def reporte_detallado_por_ejecutivo(
             )
 
         executive_id_map = dict(zip(df_id_eje["Ejecutivo"], df_id_eje["IdEje"]))
-        start_date_parsed = datetime.strptime(start_date, "%d/%m/%Y").strftime("%Y-%m-%d")
-        end_date_parsed = (datetime.strptime(end_date, "%d/%m/%Y") + timedelta(days=1)).strftime(
+        start_date_parsed = datetime.strptime(start_date, "%d/%m/%Y").strftime(
             "%Y-%m-%d"
         )
+        end_date_parsed = (
+            datetime.strptime(end_date, "%d/%m/%Y") + timedelta(days=1)
+        ).strftime("%Y-%m-%d")
         tabla: str = "EjeEstado"
         reporte_final = ""
 
@@ -301,11 +313,13 @@ def reporte_detallado_por_ejecutivo(
                     reporte_final += f"\nNo se encontraron atenciones para el ejecutivo {nombre} en el período {start_date} - {end_date}."
                 else:
                     reporte_final += f"\n\nResumen de atenciones diarias ({len(df.index)} días con atenciones):\n{df.to_markdown(index=False)}\n\n"
-                    reporte_final += "\n\nConsolidado para el período:\n"
+                    reporte_final += f"\n\nConsolidado para el período:\n"
                     reporte_final += f"Total de atenciones: {df.Atenciones.sum()}\n"
                     reporte_final += f"Promedio diario de tiempo por atención: {df['Tiempo Promedio por Atencion (minutos)'].mean():.2f} minutos\n\n"
             except Exception as e:
-                reporte_final += f"\nError al obtener el resumen de atenciones: {str(e)}"
+                reporte_final += (
+                    f"\nError al obtener el resumen de atenciones: {str(e)}"
+                )
 
             # Tercera consulta - Eventos
             query_2 = f"""
@@ -331,7 +345,9 @@ def reporte_detallado_por_ejecutivo(
                     required_columns = ["IdEje", "FH_Eve", "Evento"]
                     if all(col in df.columns for col in required_columns):
                         try:
-                            reporte_final += f"\n\nEventos encontrados ({len(df.index)} eventos):\n"
+                            reporte_final += (
+                                f"\n\nEventos encontrados ({len(df.index)} eventos):\n"
+                            )
                             # print(nombre, df, nombre)
                             reporte_eventos = reporte_general_estados(df, nombre)
                             if reporte_eventos and len(reporte_eventos.strip()) > 0:
@@ -339,9 +355,13 @@ def reporte_detallado_por_ejecutivo(
                             else:
                                 reporte_final += "\nNo se pudo generar el reporte de eventos aunque se encontraron registros."
                         except Exception as e:
-                            reporte_final += f"\nError al procesar el reporte de eventos: {str(e)}"
+                            reporte_final += (
+                                f"\nError al procesar el reporte de eventos: {str(e)}"
+                            )
                     else:
-                        missing_cols = [col for col in required_columns if col not in df.columns]
+                        missing_cols = [
+                            col for col in required_columns if col not in df.columns
+                        ]
                         reporte_final += f"\nFaltan columnas necesarias en los datos de eventos: {', '.join(missing_cols)}"
             except Exception as e:
                 reporte_final += f"\nError al obtener los eventos: {str(e)}"
@@ -384,24 +404,29 @@ class ReporteDetalladoPorEjecutivo(BaseModel):
         ],
         description="Lista de nombres completos de ejecutivos",
     )
-    start_date: str = Field(default="01/10/2024", description="Start date in '%d/%m/%Y' format")
-    end_date: str = Field(default="15/10/2024", description="End date in '%d/%m/%Y'  format")
+    start_date: str = Field(
+        default="01/10/2024", description="Start date in '%d/%m/%Y' format"
+    )
+    end_date: str = Field(
+        default="15/10/2024", description="End date in '%d/%m/%Y'  format"
+    )
     parse_input_for_tool = classmethod(parse_input)
     get_documentation_for_tool = classmethod(get_documentation)
 
 
 @add_docstring(
-    """
-Detalles de ejecutivos
+    """Detalles de ejecutivos
 Utilizar sólo cuando el usuario/humano explícitamente requiera información detallada o solicite profundizar sobre ejecutivos.
 Parameters:
 {params_doc}
 Para obtener un único día start_date y end_date deben ser iguales a la fecha requerida.
-Returns: 
-Reporte detallado con información sobre uno o más ejecutivos para un perído de tiempo.
-El reporte entrega Oficina, Series que atiende, Resumen de atenciones diarias y tiempo en Pausas. 
-Importante: Extraer y sintetizar únicamente la información específica que el usuario/humano requiere, nunca muestre todo el reporte, nunca.
-""".format(params_doc=ReporteDetalladoPorEjecutivo.get_documentation_for_tool())
+Returns:
+Reporte detallado con información sobre uno o más ejecutivos para un período de tiempo.
+El reporte detallado de ejecutivos entrega Oficina, Series que atiende, Resumen de atenciones diarias.
+Total de atenciones, Promedio diario de tiempo por atención, cantidad de Pausas, tiempo en Pausas, porcentaje de tiempo en pausa.
+""".format(
+        params_doc=ReporteDetalladoPorEjecutivo.get_documentation_for_tool()
+    )
 )
 def get_reporte_detallado_por_ejecutivo(input_string: str) -> str:
     try:
@@ -417,10 +442,11 @@ tool_reporte_detallado_por_ejecutivo = StructuredTool.from_function(
     func=get_reporte_detallado_por_ejecutivo,
     name="get_reporte_detallado_por_ejecutivo",
     description=get_reporte_detallado_por_ejecutivo.__doc__,
-    return_direct=False,
+    return_direct=True,
 )
 if __name__ == "__main__":
-    input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
+    # input_string = '{"executive_names":["Luis Hernan Labarca Montecino", "Natalia Belen Troncoso Silva", "Ricardo Andres Cataldo Veloso", "Ivonne Alejandra Munoz Diaz"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
+    input_string = '{"executive_names":["Luis Hernan Labarca Montecino"], "start_date":"01/08/2024", "end_date":"31/08/2024"}'
 
     f"""{print(tool_reporte_detallado_por_ejecutivo.description)=},
         {print(tool_reporte_detallado_por_ejecutivo.invoke(

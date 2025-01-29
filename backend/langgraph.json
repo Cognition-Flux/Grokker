@@ -1,8 +1,0 @@
-{
-  "python_version": "3.12",
-  "dependencies": ["."],
-  "graphs": {
-    "office_assistant": "./src/agent/office_assistant.py:office_assistant"
-  },
-  "env": "./.env"
-}

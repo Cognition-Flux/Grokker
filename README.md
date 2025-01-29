@@ -1,6 +1,6 @@
 # Grokker
 <div align="left">
-  <p style="font-family: monospace; color: #666666;">
+  <p style="font-family: arial; color: #666666;">
     By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>
   </p>
 </div>

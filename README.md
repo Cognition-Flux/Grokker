@@ -1,7 +1,8 @@
 # Grokker
+
 <div align="left">
   <p style="color: #666666;">
-    By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>
+    By 𝚊𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 𝚊𝚌𝚎𝚟𝚎𝚍𝚘 𝚊., <i>𝚙𝚑.𝚍.</i>
   </p>
 </div>
 

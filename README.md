@@ -56,7 +56,6 @@ graph TD;
 ```
 ### App
 ![WebApp home](docs/Screenshot1.png)
-### Chat
 ![WebApp chat](docs/Screenshot2.png)
 
 # Flujo multi-agéntico

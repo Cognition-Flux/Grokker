@@ -59,13 +59,16 @@ graph TD;
 ### Chat
 ![WebApp chat](docs/Screenshot2.png)
 
+# Flujo multi-agéntico
+
+El código fuente del sistema agéntico se puede ver [aquí]([backend/src/agents/grokker/multiagent_graph_v2.py](https://github.com/Cognition-Flux/Grokker/blob/main/backend/src/agents/grokker/multiagent_graph_v2.py)).
+
+
 # Levantar Aplicación
 
 Pasos para poner en marcha tanto el servicio de backend como el de frontend.
 
 ---
-
-## Levantar el Servicio de Backend
 
 ### 1. Restaurar el Ambiente Virtual
 

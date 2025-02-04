@@ -92,9 +92,7 @@ uv run run_service.py
 
 ### Levantar servicio de frontend
 
-en el directorio frontend
-
-Instalar bun en caso de que no esté
+Instalar bun
 
 ```bash
 curl -fsSL https://bun.sh/install | bash
@@ -105,7 +103,7 @@ Instalar las librerias
 ```bash
 bun install
 ```
-Lanzar el front
+En el directorio frontend lanzar el front
 ```bash
 bun run dev
 ```

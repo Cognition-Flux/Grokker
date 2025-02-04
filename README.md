@@ -110,4 +110,4 @@ bun run dev
 
 # Uso
 
-Para garantizar la operatividad completa de la aplicación, es imperativo mantener ambos servicios ejecutándose simultáneamente. El backend proporciona una API REST que expone los endpoints necesarios para la comunicación con el modelo de lenguaje y el procesamiento de datos, mientras que el frontend sirve la interfaz de usuario a través de un servidor de desarrollo. La comunicación entre ambas capas se realiza mediante peticiones HTTP/HTTPS, por lo que la inactividad de cualquiera de los servicios resultará en una degradación funcional del sistema.
+Se requiere mantener ambos servicios ejecutándose simultáneamente. El backend proporciona una API REST que expone los endpoints necesarios para la comunicación con el modelo de lenguaje y el procesamiento de datos, mientras que el frontend sirve la interfaz de usuario a través de un servidor de desarrollo. La comunicación entre ambas capas se realiza mediante peticiones HTTP/HTTPS, por lo que la inactividad de cualquiera de los servicios resultará en una degradación funcional del sistema.

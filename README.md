@@ -1,5 +1,12 @@
 # Grokker
 
+ Sistema multiagente usando langgraph y langchain para procesar y analizar información. El grafo (StateGraph) define un flujo de trabajo donde varios agentes especializados interactúan secuencialmente: un agente de guía (guidance_agent) que maneja las interacciones iniciales, un agente de contexto que procesa información sobre contexto, y un agente analista que realiza análisis detallados. Utiliza langchain para la integración con modelos de lenguaje (específicamente ChatOpenAI/GPT-4) y la definición de herramientas personalizadas. El grafo mantiene un estado personalizado (CustomGraphState) que hereda de MessagesState de langgraph, permitiendo el seguimiento de mensajes y contexto a través de la ejecución. La arquitectura aprovecha características clave de langgraph como el manejo de estados, nodos de herramientas (ToolNode), y el sistema de checkpointing para persistencia de memoria, mientras que langchain proporciona la infraestructura para la interacción con LLMs y la definición de herramientas.
+ 
+### Flujo multi-agéntico
+
+El código fuente del sistema agéntico se puede ver [aquí](https://github.com/Cognition-Flux/Grokker/blob/main/backend/src/agents/grokker/multiagent_graph_v2.py).
+
+
 <div align="left">
   <p style="color: #666666;">
     By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>
@@ -57,11 +64,6 @@ graph TD;
 ### App
 ![WebApp home](docs/Screenshot1.png)
 ![WebApp chat](docs/Screenshot2.png)
-
-# Flujo multi-agéntico
-
-El código fuente del sistema agéntico se puede ver [aquí](https://github.com/Cognition-Flux/Grokker/blob/main/backend/src/agents/grokker/multiagent_graph_v2.py).
-
 
 # Levantar Aplicación
 

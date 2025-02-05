@@ -6,7 +6,6 @@ Sistema multiagente usando langgraph y langchain para procesar y analizar inform
 
 El código fuente del sistema agéntico se puede ver [aquí](https://github.com/Cognition-Flux/Grokker/blob/main/backend/src/agents/grokker/multiagent_graph_v2.py).
 
-
 <div align="left">
   <p style="color: #666666;">
     By A𝚕𝚎𝚓𝚊𝚗𝚍𝚛𝚘 A𝚌𝚎𝚟𝚎𝚍𝚘 A., <i>P𝚑.D.</i>

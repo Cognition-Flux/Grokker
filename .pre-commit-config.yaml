@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0  # Puedes usar la versión que prefieras
+    hooks:
+      - id: isort
+        name: isort (Organiza importaciones)
+        args: ["--profile", "black"]
+        language_version: python3
+
+  - repo: https://github.com/psf/black
+    rev: 23.3.0  # Actualiza la versión según lo necesites
+    hooks:
+      - id: black
+        language_version: python3
+
+  - repo: https://github.com/pre-commit/mirrors-flake8
+    rev: 4.0.1  # Usa la versión estable de flake8
+    hooks:
+      - id: flake8
+        language_version: python3 

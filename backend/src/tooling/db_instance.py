@@ -90,7 +90,10 @@ def get_offices(group_by_zone=False) -> GetOfficesResponse:
             rows = offices.all()
 
             return GetOfficesResponse(
-                offices=[GetOfficesResponseOffices(name=row[0], ref=str(row[1])) for row in rows]
+                offices=[
+                    GetOfficesResponseOffices(name=row[0], ref=str(row[1]))
+                    for row in rows
+                ]
             )
 
 

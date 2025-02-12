@@ -2,29 +2,32 @@
 line-length = 88
 target-version = ["py37"]
 include = '\.pyi?$'
-# Excluir archivos o directorios según patrón, en este caso se excluye "foo.py" del directorio raíz
-extend-exclude = '''
-# A regex preceded with ^/ will apply only to files and directories
-# in the root of the project.
-^/foo.py  # exclude a file named foo.py in the root of the project
+# Se excluyen directorios y archivos que no deben formatearse
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
 '''
 
-
 [tool.flake8]
+# Máxima longitud de línea y complejidad ciclomatica para mantener estándares rigurosos
 max-line-length = 88
 max-complexity = 10
 extend-ignore = [
-    "E203", # Whitespace before ':' (needed for Black)
-    "W503", # Line break before binary operator (needed for Black)
+    "E203", # Ignora espacio antes de ':' (necesario para ser compatible con Black)
+    "W503", # Ignora la ruptura de línea antes de operadores binarios (compatible con Black)
 ]
 select = [
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "F", # pyflakes
-    "B", # flake8-bugbear
-    "C", # mccabe complexity
-    #"D",   # flake8-docstrings
-    "I",   # flake8-import-order
+    "E",   # Errores de pycodestyle
+    "W",   # Advertencias de pycodestyle
+    "F",   # Errores de pyflakes
+    "B",   # flake8-bugbear
+    "C",   # Complejidad de McCabe
+    "I",   # Orden de importaciones (flake8-import-order)
     "N",   # pep8-naming
     "Q",   # flake8-quotes
     "S",   # flake8-bandit
@@ -33,16 +36,20 @@ select = [
     "ERA", # flake8-eradicate
 ]
 
-# Configuración de importaciones
+# Organización de importaciones: se utiliza el estilo "google" y se establecen los nombres de las importaciones de la aplicación
 import-order-style = "google"
 application-import-names = ["lgraph_essentials"]
-import-order-grouped-imports = true
 
-# Configuración de docstrings
-#docstring-convention = "google"
-
-# Excluir archivos/directorios
 exclude = [".git", "__pycache__", "build", "dist", "*.pyc", "*.egg-info"]
+
+[tool.isort]
+profile = "black"                     # Asegura compatibilidad con Black
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
 
 # Configuración de quotes
 inline-quotes = "double"

@@ -3,6 +3,7 @@ Módulo para la ejecución de agentes y la generación de prompts para
 la extracción, análisis y reporte de información.
 """
 
+# %%
 import json
 import logging
 import os
@@ -32,7 +33,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import tool
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.message import add_messages
@@ -69,17 +70,34 @@ system_prompt_prohibited_actions = SystemMessage(
 load_dotenv(override=True)
 
 
-def get_llm() -> ChatOpenAI:
+def get_llm(deployment: Literal["openai", "azure"] = "openai") -> ChatOpenAI:
     """Retorna una instancia de ChatOpenAI configurada."""
-    return ChatOpenAI(
-        model="gpt-4o",
-        temperature=0,
-        max_retries=5,
-        streaming=True,
-        api_key=os.environ["OPENAI_API_KEY"],
-    )
+    if deployment == "openai":
+        return ChatOpenAI(
+            model="gpt-4o",
+            temperature=0,
+            max_retries=5,
+            streaming=True,
+            api_key=os.environ["OPENAI_API_KEY"],
+        )
+    elif deployment == "azure":
+        return AzureChatOpenAI(
+            azure_deployment="gpt-4o",
+            api_version=os.environ["AZURE_API_VERSION"],
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=5,
+            api_key=os.environ["AZURE_OPENAI_API_KEY"],
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            streaming=True,
+        )
 
 
+# get_llm(deployment="azure").invoke("hola")
+
+
+# %%
 class CustomGraphState(MessagesState):
     """Estado del grafo con información adicional."""
 

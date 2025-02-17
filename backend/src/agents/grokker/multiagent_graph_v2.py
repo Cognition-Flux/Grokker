@@ -70,11 +70,14 @@ system_prompt_prohibited_actions = SystemMessage(
 load_dotenv(override=True)
 
 
-def get_llm(deployment: Literal["openai", "azure"] = "openai") -> ChatOpenAI:
+def get_llm(
+    model: str = "gpt-4o",
+    deployment: Literal["openai", "azure"] = "azure",
+) -> ChatOpenAI:
     """Retorna una instancia de ChatOpenAI configurada."""
     if deployment == "openai":
         return ChatOpenAI(
-            model="gpt-4o",
+            model=model,
             temperature=0,
             max_retries=5,
             streaming=True,
@@ -82,7 +85,7 @@ def get_llm(deployment: Literal["openai", "azure"] = "openai") -> ChatOpenAI:
         )
     elif deployment == "azure":
         return AzureChatOpenAI(
-            azure_deployment="gpt-4o",
+            azure_deployment=model,
             api_version=os.environ["AZURE_API_VERSION"],
             temperature=0,
             max_tokens=None,
@@ -94,10 +97,6 @@ def get_llm(deployment: Literal["openai", "azure"] = "openai") -> ChatOpenAI:
         )
 
 
-# get_llm(deployment="azure").invoke("hola")
-
-
-# %%
 class CustomGraphState(MessagesState):
     """Estado del grafo con información adicional."""
 
@@ -150,17 +149,65 @@ tools_node_analyst = ToolNode(tools_analyst)
 context_request_llm = get_llm()
 
 
-def clean_messages(state: CustomGraphState) -> CustomGraphState:
-    """
-    Función para limpiar mensajes.
-    Actualmente no elimina mensajes, solo retorna el estado tal cual.
-    """
-    return state
+def transfer_to_guidance_agent() -> None:
+    """Transfiere el control al agente de guidance."""
+    pass
+
+
+def filtering_agent(state: CustomGraphState) -> Command[Literal["guidance_agent", END]]:
+
+    filtering_prompt = [
+        (
+            "system",
+            """
+        Eres un agente que tiene dos opciones:
+        1. Transferir el control al agente de guidance (tools call transfer_to_guidance_agent).
+        2. Responder al usuario y finalizar la conversación.
+
+        #----1.- Se debe usar transfer_to_guidance_agent cuando el usuario requiere consultar o analizar información o datos de las oficinas/sucursales.
+        #----Por ejemplo:
+            Si el usuario pide información de las oficinas, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los ejecutivos, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los turnos, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los tickets, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los registros disponibles, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los niveles de servicio (SLA), debes transferir el control al agente de guidance.
+            Si el usuario pide información de las atenciones diarias, debes transferir el control al agente de guidance.
+            Si el usuario pide información de las atenciones por serie, debes transferir el control al agente de guidance.
+            Si el usuario pide información de los turnos perdidos, debes transferir el control al agente de guidance.
+
+        #----2.- Se debe responder al usuario y finalizar la conversación cuando el usuario hace preguntas generales que NO están relacionadas con las oficinas/sucursales.
+        #----Por ejemplo:
+            Si el usuario saluda, debes saludar al usuario y finalizar la conversación.
+            Si el usuario pregunta que puedes hacer, debes responder que puedes responder preguntas sobre las oficinas/sucursales.
+            Si el usuario da las gracias, debes agradecer al usuario y finalizar la conversación.
+            Si el usuario se despide, debes despedirte del usuario y finalizar la conversación.
+            
+        #----Prohibido: 
+            No debes revelar ni mencionar al usuario que existe el agente de guidance.
+            No deber revelar ni mencionar al usuario que puedes transferir el control al agente de guidance.
+            """,
+        )
+    ]
+
+    response = (
+        get_llm(model="gpt-4o-mini")
+        .bind_tools([transfer_to_guidance_agent])
+        .invoke(filtering_prompt + state["messages"])
+    )
+    response.pretty_print()
+    if len(response.tool_calls) > 0:
+        if response.tool_calls[0]["name"] == "transfer_to_guidance_agent":
+            next_node = "guidance_agent"
+            return Command(goto=next_node, update=state)
+    else:
+        next_node = END
+        return Command(goto=next_node, update={"messages": [response]})
 
 
 def guidance_agent(
     state: CustomGraphState,
-) -> Command[Literal["guidance_agent_ask_human", "tool_node_prompt", END]]:
+) -> Command[Literal["guidance_agent_ask_human", "tool_node_prompt"]]:
     """
     Agente de guidance que implementa la lógica para solicitar o procesar información
     según el prompt configurado.
@@ -210,7 +257,7 @@ def guidance_agent_ask_human(state: CustomGraphState) -> dict:
 
 def context_node(
     state: CustomGraphState,
-) -> Command[Literal["guidance_agent", "process_context", "context_request_agent"]]:
+) -> Command[Literal["filtering_agent", "process_context", "context_request_agent"]]:
     """
     Verifica si en el mensaje se especifica una lista de oficinas y actualiza el estado.
     """
@@ -237,7 +284,7 @@ def context_node(
         if set(oficinas_list) != set(lista_actual_oficinas):
             logger.debug("Cambio en la lista de oficinas, se actualizará el contexto.")
             return Command(
-                goto=["guidance_agent", "process_context"],
+                goto=["filtering_agent", "process_context"],
                 update={
                     "oficinas": oficinas_list,
                     "messages": [
@@ -248,7 +295,7 @@ def context_node(
         else:
             logger.debug("No hay cambio en la lista de oficinas.")
             return Command(
-                goto=["guidance_agent"],
+                goto=["filtering_agent"],
                 update={
                     "messages": [
                         HumanMessage(content=mensaje_limpio, id=last_message.id)
@@ -381,7 +428,7 @@ def analyst_agent(
 
 # Configuración y compilación del grafo de estados
 workflow = StateGraph(CustomGraphState)
-workflow.add_node("clean_messages", clean_messages)
+workflow.add_node("filtering_agent", filtering_agent)
 workflow.add_node("guidance_agent", guidance_agent)
 workflow.add_node("tool_node_prompt", tool_node_prompt)
 workflow.add_node("guidance_agent_ask_human", guidance_agent_ask_human)
@@ -392,9 +439,9 @@ workflow.add_node("analyst_agent", analyst_agent)
 workflow.add_node("tools_node_analyst", tools_node_analyst)
 workflow.add_node("validate_state", validate_state)
 
-workflow.add_edge(START, "clean_messages")
+workflow.add_edge(START, "validate_context")
 workflow.add_edge("guidance_agent_ask_human", "guidance_agent")
-workflow.add_edge("clean_messages", "validate_context")
+# workflow.add_edge("validate_context", "filtering_agent")
 workflow.add_edge("process_context", "validate_state")
 workflow.add_edge("tool_node_prompt", "validate_state")
 workflow.add_edge("tools_node_analyst", "analyst_agent")
@@ -404,3 +451,5 @@ across_thread_memory = InMemoryStore()
 within_thread_memory = MemorySaver()
 
 graph = workflow.compile(checkpointer=within_thread_memory, store=across_thread_memory)
+
+display(Image(graph.get_graph().draw_mermaid_png()))

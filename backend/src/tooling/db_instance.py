@@ -15,18 +15,23 @@ logging.basicConfig()
 logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
 # logger.setLevel(logging.DEBUG)
 
-_DB_USERNAME: str = os.getenv("DB_USERNAME")  # , "v40_afc_r")
-_DB_PASSWORD: str = os.getenv("DB_PASSWORD")  # , "ttp_turnos1")
-_DB_SERVER: str = os.getenv("DB_SERVER")  # , "10.0.1.21")
-_DB_DATABASE: str = os.getenv("DB_DATABASE")  # , "TTP_AFC")
+# Variables de entorno
+DB_USERNAME = os.getenv("DB_USERNAME")  #
+DB_PASSWORD = os.getenv("DB_PASSWORD")  #
+DB_SERVER = os.getenv("DB_SERVER")  #
+DB_PORT = os.getenv("DB_PORT")  #
+DB_DATABASE = os.getenv("DB_DATABASE")  #
+# Construcción de la cadena de conexión
+connection_url = (
+    f"mssql+pymssql://{DB_USERNAME}:{DB_PASSWORD}"
+    f"@{DB_SERVER}:{DB_PORT}/{DB_DATABASE}"
+)
+logger.info(
+    f"{DB_USERNAME = }\n{DB_PASSWORD = }\n{DB_SERVER = }\n{DB_PORT = }\n{DB_DATABASE = }"
+)
 
-logger.info(f"{_DB_USERNAME = }\n{_DB_PASSWORD = }\n{_DB_SERVER = }\n{_DB_DATABASE = }")
-
-
-# mssql: adaptador para Microsoft SQL Server database
-# pymssql: Python driver.
 _engine = sqlalchemy.create_engine(
-    url=f"mssql+pymssql://{_DB_USERNAME}:{_DB_PASSWORD}@{_DB_SERVER}/{_DB_DATABASE}",
+    connection_url,
     pool_recycle=3600,
     pool_pre_ping=True,
 )
@@ -121,5 +126,8 @@ def get_last_database_update() -> datetime:
 
         return last_update
 
+
+if __name__ == "__main__":
+    print(get_just_office_names())
 
 # %%

@@ -143,6 +143,28 @@ async def message_generator_v2(user_input: StreamInput) -> AsyncGenerator[str, N
 
         if (
             "on_chat_model_end" in event["event"]
+            and event["metadata"].get("langgraph_node", "") == "filtering_agent"
+        ):
+            print(f"#-------------filtering_agent: {event['data']['output']=}")
+            message = event["data"]["output"]
+            print(f"#-------------filtering_agent: {message=}")
+            if message:
+                if message.content != "":
+                    print(f"Procesando mensaje: {message=}")
+                    message.pretty_print()
+                    try:
+                        chat_message = ChatMessage.from_langchain(message)
+                        print(f"1111 {chat_message=}")
+                        chat_message.run_id = str(run_id)
+                        print(f"1111 {chat_message.run_id=}")
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
+                        continue
+
+                    yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
+
+        if (
+            "on_chat_model_end" in event["event"]
             and event["metadata"].get("langgraph_node", "") == "guidance_agent"
         ):
             print(f"#-------------guidance_agent: {event['data']['output']=}")
